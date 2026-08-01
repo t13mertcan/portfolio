@@ -108,6 +108,9 @@
   td.editable{cursor:text;text-decoration:underline dotted var(--axis);text-underline-offset:3px}
   td.editable input{width:84px;font:inherit;text-align:right;background:var(--chip);color:var(--ink-1);
     border:1px solid var(--accent);border-radius:6px;padding:2px 6px;outline:none}
+  .th-toggle{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+  .th-toggle:hover{color:var(--ink-1)}
+  .th-toggle.daily{color:var(--accent)}
   .pl-cell{font-weight:650}
   .pl-cell.up{color:var(--up)} .pl-cell.down{color:var(--down)}
   .tbl-note{font-size:11px;color:var(--ink-3);margin-top:12px;line-height:1.5}
@@ -140,6 +143,10 @@
   .settings .hint{font-size:11px;color:var(--ink-3);margin-top:8px;line-height:1.5}
   .key-ok{font-size:12px;color:var(--up);font-weight:600}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .col-stack .card-glass{margin-bottom:0}
+  #tvNews{min-height:420px;border-radius:12px;overflow:hidden}
+
   ::-webkit-scrollbar{height:8px;width:8px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:99px}
 
@@ -233,12 +240,6 @@
     </div>
   </header>
 
-  <section class="card-glass news-strip">
-    <span class="ns-lbl">📰 News</span>
-    <div class="news-row"><div class="news-track" id="newsList"></div></div>
-    <span id="newsSub" hidden></span>
-  </section>
-
   <section class="card-glass hero">
     <div class="hero-top">
       <div>
@@ -300,13 +301,19 @@
       </div>
       <div class="tbl-note">All rows update live from TradingView (~real-time). Double-click a price to override it if a row ever shows MANUAL.</div>
     </section>
-    <section class="card-glass">
-      <div class="card-head"><div><h2>Asset allocation</h2><div class="sub-h">By current value</div></div></div>
-      <div class="alloc">
-        <svg id="donut" width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Asset allocation donut chart"></svg>
-        <div class="leg" id="allocLeg"></div>
-      </div>
-    </section>
+    <div class="col-stack">
+      <section class="card-glass">
+        <div class="card-head"><div><h2>Asset allocation</h2><div class="sub-h">By current value</div></div></div>
+        <div class="alloc">
+          <svg id="donut" width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Asset allocation donut chart"></svg>
+          <div class="leg" id="allocLeg"></div>
+        </div>
+      </section>
+      <section class="card-glass">
+        <div class="card-head"><div><h2>Market news</h2><div class="sub-h">Live feed · updates automatically</div></div></div>
+        <div id="tvNews"></div>
+      </section>
+    </div>
   </div>
 
   <div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
@@ -373,24 +380,6 @@ const POSITIONS = [
   {tk:'USD', cls:'Nakit', ccy:'USD', qty:2907.36, avg:1, price:1, live:null},
   {tk:'TRY', cls:'Nakit', ccy:'TRY', qty:4886.70, avg:1, price:1, live:null},
 ];
-const NEWS_SEED = [
-  {t:"S&P 500 and Nasdaq rebound after Fed decision as Microsoft leads tech gains", s:'Yahoo Finance', tag:'ABD',
-   url:'https://finance.yahoo.com/markets/live/stock-market-today-thursday-july-30-dow-sp-500-nasdaq-082255995.html'},
-  {t:'Fed holds rates steady — index futures gain; Meta, Microsoft and Apple in focus', s:'Benzinga', tag:'ABD',
-   url:'https://www.benzinga.com/markets/equities/26/07/60788808/stock-market-today-sp-500-nasdaq-100-futures-gain-as-federal-reserve-holds-interest-rates-meta-microsoft-apple-in-focus'},
-  {t:'Borsa Istanbul, July 30: how BIST 100 opened the day', s:'Mynet Finans', tag:'BIST',
-   url:'https://finans.mynet.com/haber/detay/borsa/borsa-istanbul-acildi-30-temmuz-persembe-2026-bist-100de-yeni-gelismeler/565671/'},
-  {t:'Why did the BIST 100 index fall? July 30 review', s:'Uzmanpara', tag:'BIST',
-   url:'https://uzmanpara.milliyet.com.tr/uzmanpara/borsa-neden-dusuyor-30-temmuz-2026-bugun-borsa-istanbul-bist-100-endeksi-neden-dustu-7632349'},
-  {t:'Bitcoin and Ethereum rise after Fed decision; BTC near $64K', s:'Yahoo Finance', tag:'Kripto',
-   url:'https://finance.yahoo.com/personal-finance/investing/article/bitcoin-and-ethereum-prices-today-thursday-july-30-2026-prices-rise-after-fed-leaves-rates-unchanged-132340233.html'},
-  {t:'Pi Coin and BNB lead gains ahead of Strategy and Coinbase earnings', s:'CoinGape', tag:'Kripto',
-   url:'https://coingape.com/markets/crypto-market-update-july-30-pi-coin-bnb-lead-gains-ahead-of-strategy-coinbase-earnings/'},
-  {t:'Gold crests $4,100 after Fed holds rates steady', s:'Yahoo Finance', tag:'Metal',
-   url:'https://finance.yahoo.com/personal-finance/investing/article/gold-prices-today-thursday-july-30-2026-gold-prices-crest-4100-after-fed-holds-rates-steady-123355668.html'},
-  {t:"Bitcoin bounces to $64,300 as crypto prices in the Fed", s:'CoinDesk', tag:'Kripto',
-   url:'https://www.coindesk.com/markets/2026/07/29/bitcoin-steadies-above-usd64-000-as-crypto-looks-to-fed-interest-rate-decision'},
-];
 
 const RATES=[
   {id:'usdtry', name:'USD/TRY',           price:47.41,  chg:0.00,  src:'fx',  dec:2},
@@ -408,7 +397,7 @@ const RATES=[
 ];
 const rateById = id => RATES.find(r=>r.id===id);
 /* ================= state ================= */
-const S = { fx: 47.41, fhKey: null, lastUpdate: null, liveOk: false, range: '1M', daily: [], intraday: [], prevClose: 0 };
+const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: '1M', daily: [], intraday: [], prevClose: 0 };
 const $ = id => document.getElementById(id);
 const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 /* ================= helpers ================= */
@@ -646,17 +635,32 @@ function renderTable(){
     const nm=document.createElement('span'); nm.className='ph-nm'; nm.textContent=CLASSES[cls].name;
     left.append(dot,nm);
     const isTL = cls==='BIST';
+    const mode = S.plMode[cls]||'total';
     const sumV = isTL ? items.reduce((a,p)=>a+p.qty*p.price,0) : items.reduce((a,p)=>a+valUSD(p),0);
     const sumC = isTL ? items.reduce((a,p)=>a+p.qty*p.avg,0)   : items.reduce((a,p)=>a+costUSD(p),0);
     const pl=sumV-sumC, plp=sumC?pl/sumC:0;
+    let hdPL=pl, hdPLP=plp, hdHas=true;
+    if(mode==='daily'){
+      let dsum=0, base=0, anyP=false;
+      items.forEach(p=>{
+        if(p.cls==='Nakit'){ anyP=true; return; }
+        if(p.prev!=null){
+          anyP=true;
+          const dNat=(p.price-p.prev)*p.qty;
+          dsum += isTL ? dNat : (p.ccy==='TRY' ? dNat/S.fx : dNat);
+          base += isTL ? p.prev*p.qty : (p.ccy==='TRY' ? p.prev*p.qty/S.fx : p.prev*p.qty);
+        }
+      });
+      if(anyP){ hdPL=dsum; hdPLP=base?dsum/base:0; } else hdHas=false;
+    }
     const more=document.createElement('span'); more.className='ph-more'; more.textContent='▸ details';
     left.append(more);
     const right=document.createElement('div'); right.className='ph-stats';
     const v=document.createElement('span'); v.className='ph-val'; v.textContent=(isTL?fmtTRY:fmtUSD).format(sumV);
     const vs=document.createElement('span'); vs.className='ph-sub';
     vs.textContent='≈ '+(isTL ? fmtUSD.format(sumV/S.fx) : fmtTRY.format(sumV*S.fx));
-    const d=document.createElement('span'); d.className='delta '+(pl>=0?'up':'down');
-    d.textContent=fmtSignC(pl,isTL)+' ('+fmtPct(plp)+')';
+    const d=document.createElement('span'); d.className='delta '+(hdPL>=0?'up':'down');
+    d.textContent = hdHas ? (mode==='daily'?'today ':'')+fmtSignC(hdPL,isTL)+' ('+fmtPct(hdPLP)+')' : 'today —';
     if(items.length){ right.append(v,vs,d); } else { v.textContent='—'; right.append(v); }
     hd.append(left,right); card.appendChild(hd);
     hd.addEventListener('click',()=>openClassModal(cls));
@@ -669,7 +673,16 @@ function renderTable(){
     const wrap=document.createElement('div'); wrap.style.overflowX='auto';
     const tbl=document.createElement('table');
     const thead=document.createElement('thead'); const trh=document.createElement('tr');
-    ['Position','Qty','Avg Cost','Price','Value','P/L','P/L %'].forEach(h=>{const th=document.createElement('th'); th.textContent=h; trh.appendChild(th);});
+    ['Position','Qty','Avg Cost','Price','Value','P/L','P/L %'].forEach(h=>{
+      const th=document.createElement('th');
+      if(h==='P/L'||h==='P/L %'){
+        th.textContent=(mode==='daily'?'Daily ':'')+h;
+        th.className='th-toggle'+(mode==='daily'?' daily':'');
+        th.title='Click to switch daily / total P&L';
+        th.addEventListener('click',()=>{ S.plMode[cls]=(mode==='daily')?'total':'daily'; renderTable(); });
+      } else th.textContent=h;
+      trh.appendChild(th);
+    });
     thead.appendChild(trh); tbl.appendChild(thead);
     const tb=document.createElement('tbody');
     items.forEach(p=>{
@@ -689,14 +702,29 @@ function renderTable(){
       tr.appendChild(td3);
       const v2 = isTL ? p.qty*p.price : valUSD(p);
       const c2 = isTL ? p.qty*p.avg   : costUSD(p);
-      const pl2=v2-c2, plp2=c2?pl2/c2:0;
+      let pl2, plp2, hasPL=true;
+      if(mode==='daily'){
+        if(p.cls==='Nakit'){ pl2=0; plp2=0; }
+        else if(p.prev!=null){
+          const dNat=(p.price-p.prev)*p.qty;
+          pl2 = isTL ? dNat : (p.ccy==='TRY' ? dNat/S.fx : dNat);
+          plp2 = p.prev ? (p.price/p.prev-1) : 0;
+        } else hasPL=false;
+      } else { pl2=v2-c2; plp2=c2?pl2/c2:0; }
       const td4=document.createElement('td');
       const vm=document.createElement('span'); vm.textContent=(isTL?fmtTRY:fmtUSD).format(v2);
       const vsub=document.createElement('span'); vsub.className='cell-sub';
       vsub.textContent=isTL ? fmtUSD.format(v2/S.fx) : fmtTRY.format(v2*S.fx);
       td4.append(vm,vsub); tr.appendChild(td4);
-      const td5=document.createElement('td'); td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=fmtSignC(pl2,isTL); tr.appendChild(td5);
-      const td6=document.createElement('td'); td6.className='pl-cell '+(pl2>=0?'up':'down'); td6.textContent=fmtPct(plp2); tr.appendChild(td6);
+      const td5=document.createElement('td'); const td6=document.createElement('td');
+      if(hasPL){
+        td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=fmtSignC(pl2,isTL);
+        td6.className='pl-cell '+(pl2>=0?'up':'down'); td6.textContent=fmtPct(plp2);
+      } else {
+        td5.className='muted'; td5.textContent='—';
+        td6.className='muted'; td6.textContent='—';
+      }
+      tr.appendChild(td5); tr.appendChild(td6);
       tb.appendChild(tr);
     });
     tbl.appendChild(tb); wrap.appendChild(tbl); card.appendChild(wrap);
@@ -897,18 +925,6 @@ function renderDonut(){
   });
 }
 /* ================= news ================= */
-function renderNews(items){
-  const list=$('newsList'); list.textContent='';
-  items.concat(items).forEach(n=>{
-    const a=document.createElement('a'); a.className='n-chip'; a.href=n.url; a.target='_blank'; a.rel='noopener noreferrer';
-    a.title=n.t+' — '+n.s;
-    const dot=document.createElement('span'); dot.className='dot'; dot.style.boxShadow='none';
-    dot.style.background = CLASSES[n.tag] ? 'var('+CLASSES[n.tag].v+')' : 'var(--ink-3)';
-    const t=document.createElement('span'); t.className='n-ct'; t.textContent=n.t;
-    const sc=document.createElement('span'); sc.className='n-cs'; sc.textContent=n.s;
-    a.append(dot,t,sc); list.appendChild(a);
-  });
-}
 
 /* ================= TradingView canlı katmanı (proxy'siz, CORS açık) ================= */
 const TV_GLOBAL = [
@@ -1049,16 +1065,6 @@ async function fetchLive(){
         if(r.ok){ const j=await r.json(); if(j.c) p.price=j.c; }
       }catch(e){}
     }
-    try{
-      const r=await fetch('https://finnhub.io/api/v1/news?category=general&token='+encodeURIComponent(S.fhKey));
-      if(r.ok){
-        const j=await r.json();
-        if(Array.isArray(j)&&j.length){
-          renderNews(j.slice(0,8).map(n=>({t:n.headline,s:n.source,tag:'Piyasa',url:n.url})));
-          $('newsSub').textContent='Live feed · Finnhub';
-        }
-      }
-    }catch(e){}
   }
   S.liveOk=ok;
   S.lastUpdate=new Date();
@@ -1085,7 +1091,17 @@ $('fhSave').onclick=()=>{
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
-renderNews(NEWS_SEED);
+// TradingView canlı haber widget'ı (iframe — CORS'a takılmaz, kendi kendine güncellenir)
+(function(){
+  const c=document.getElementById('tvNews'); if(!c) return;
+  const wrap=document.createElement('div'); wrap.className='tradingview-widget-container';
+  const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget';
+  const sc=document.createElement('script');
+  sc.src='https://s3.tradingview.com/external-embedding/embed-widget-timeline.js';
+  sc.async=true;
+  sc.text=JSON.stringify({displayMode:'regular',feedMode:'market',market:'stock',colorTheme:'dark',isTransparent:true,width:'100%',height:420,locale:'en'});
+  wrap.appendChild(inner); wrap.appendChild(sc); c.appendChild(wrap);
+})();
 refresh();
 fetchLive();
 setInterval(fetchLive, 60000);
