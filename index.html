@@ -240,6 +240,11 @@
     </div>
   </header>
 
+  <section class="card-glass news-strip" id="newsStrip" style="display:none">
+    <span class="ns-lbl">📰 News</span>
+    <div class="news-row"><div class="news-track" id="newsList"></div></div>
+  </section>
+
   <section class="card-glass hero">
     <div class="hero-top">
       <div>
@@ -926,6 +931,29 @@ function renderDonut(){
 }
 /* ================= news ================= */
 
+/* ================= canlı haber şeridi (GitHub Actions -> news.json, saatlik) ================= */
+function renderNewsStrip(items){
+  const list=$('newsList'); if(!list) return;
+  list.textContent='';
+  items.concat(items).forEach(n=>{
+    const a=document.createElement('a'); a.className='n-chip'; a.href=n.url; a.target='_blank'; a.rel='noopener noreferrer';
+    a.title=n.t+(n.s?' — '+n.s:'');
+    const dot=document.createElement('span'); dot.className='dot'; dot.style.boxShadow='none'; dot.style.background='var(--accent)';
+    const t=document.createElement('span'); t.className='n-ct'; t.textContent=n.t;
+    a.append(dot,t);
+    if(n.s){ const sc=document.createElement('span'); sc.className='n-cs'; sc.textContent=n.s; a.append(sc); }
+    list.appendChild(a);
+  });
+  $('newsStrip').style.display='';
+}
+async function fetchNews(){
+  try{
+    const r=await fetch('news.json?t='+Date.now());
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j && Array.isArray(j.items) && j.items.length) renderNewsStrip(j.items);
+  }catch(e){}
+}
 /* ================= TradingView canlı katmanı (proxy'siz, CORS açık) ================= */
 const TV_GLOBAL = [
   ['es',    ['CME_MINI:ES1!']],
@@ -1105,6 +1133,8 @@ buildHistory();
 refresh();
 fetchLive();
 setInterval(fetchLive, 60000);
+fetchNews();
+setInterval(fetchNews, 15*60000);
 </script>
 </body>
 </html>
