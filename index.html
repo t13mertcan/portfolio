@@ -145,7 +145,6 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
   .col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
   .col-stack .card-glass{margin-bottom:0}
-  #tvNews{min-height:420px;border-radius:12px;overflow:hidden}
 
   ::-webkit-scrollbar{height:8px;width:8px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:99px}
@@ -209,7 +208,9 @@
   .x-meta{font-size:11px;color:var(--ink-3);margin-top:4px}
   .x-upd{font-size:11px;color:var(--ink-3)}
   /* ---------- pozisyon kartları ---------- */
-  .pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+  .pos-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .x-list{max-height:480px;overflow-y:auto}
   .pos-card{margin-bottom:0}
   .pos-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
   .ph-nm{font-size:14px;font-weight:700}
@@ -292,7 +293,7 @@
   </section>
 
 
-  <div class="pos-grid" id="posGrid"></div>
+  <div class="pos-grid"><div class="pos-col" id="posColL"></div><div class="pos-col" id="posColR"></div></div>
 
   <section class="card-glass" id="settingsCard" style="display:none">
     <div class="card-head"><div><h2>Settings</h2><div class="sub-h">Live data connections</div></div></div>
@@ -326,20 +327,15 @@
           <div class="leg" id="allocLeg"></div>
         </div>
       </section>
-      <section class="card-glass">
-        <div class="card-head"><div><h2>Market news</h2><div class="sub-h">Live feed · updates automatically</div></div></div>
-        <div id="tvNews"></div>
+      <section class="card-glass" id="xCard" style="display:none">
+        <div class="card-head">
+          <div><h2>X · Posts</h2><div class="sub-h" id="xUpd">Selected accounts · refreshed hourly</div></div>
+          <div class="x-tabs" id="xTabs"></div>
+        </div>
+        <div class="x-list" id="xList"></div>
       </section>
     </div>
   </div>
-
-  <section class="card-glass" id="xCard" style="display:none">
-    <div class="card-head">
-      <div><h2>X · Posts</h2><div class="sub-h" id="xUpd">Selected accounts · refreshed hourly</div></div>
-      <div class="x-tabs" id="xTabs"></div>
-    </div>
-    <div class="x-list" id="xList"></div>
-  </section>
 
   <div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
 </div>
@@ -649,7 +645,10 @@ function sparkFor(p){
   return pts;
 }
 function renderTable(){
-  const grid=$('posGrid'); grid.textContent='';
+  const colL=$('posColL'), colR=$('posColR');
+  colL.textContent=''; colR.textContent='';
+  let hL=0, hR=0;
+  const put=(card,rows)=>{ const est=110+rows*44; if(hL<=hR){ colL.appendChild(card); hL+=est; } else { colR.appendChild(card); hR+=est; } };
   const N='http://www.w3.org/2000/svg';
   ['ABD','BIST','Kripto','Metal','Nakit'].forEach(cls=>{
     const items=POSITIONS.filter(p=>p.cls===cls);
@@ -693,7 +692,7 @@ function renderTable(){
       const empty=document.createElement('div'); empty.className='tbl-note';
       empty.style.marginTop='4px';
       empty.textContent='No positions yet — waiting for data.';
-      card.appendChild(empty); grid.appendChild(card); return;
+      card.appendChild(empty); put(card,1); return;
     }
     const wrap=document.createElement('div'); wrap.style.overflowX='auto';
     const tbl=document.createElement('table');
@@ -753,7 +752,7 @@ function renderTable(){
       tb.appendChild(tr);
     });
     tbl.appendChild(tb); wrap.appendChild(tbl); card.appendChild(wrap);
-    grid.appendChild(card);
+    put(card, items.length);
   });
 }
 
@@ -1181,17 +1180,6 @@ $('fhSave').onclick=()=>{
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
-// TradingView canlı haber widget'ı (iframe — CORS'a takılmaz, kendi kendine güncellenir)
-(function(){
-  const c=document.getElementById('tvNews'); if(!c) return;
-  const wrap=document.createElement('div'); wrap.className='tradingview-widget-container';
-  const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget';
-  const sc=document.createElement('script');
-  sc.src='https://s3.tradingview.com/external-embedding/embed-widget-timeline.js';
-  sc.async=true;
-  sc.text=JSON.stringify({displayMode:'regular',feedMode:'market',market:'stock',colorTheme:'dark',isTransparent:true,width:'100%',height:420,locale:'en'});
-  wrap.appendChild(inner); wrap.appendChild(sc); c.appendChild(wrap);
-})();
 refresh();
 fetchLive();
 setInterval(fetchLive, 60000);
