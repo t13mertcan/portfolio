@@ -196,6 +196,18 @@
   /* piyasa verileri */
   .rate-name{font-weight:650;color:var(--ink-1)}
   .rate-sub{font-size:10px;color:var(--ink-3)}
+  /* ---------- X posts ---------- */
+  .x-tabs{display:flex;gap:2px;background:var(--chip);border:1px solid var(--border);border-radius:11px;padding:3px;flex-wrap:wrap;width:fit-content}
+  .x-tabs button{border:0;background:transparent;color:var(--ink-2);font-size:12px;font-weight:650;font-family:inherit;padding:5px 12px;border-radius:8px;cursor:pointer}
+  .x-tabs button.on{background:var(--accent-grad);color:#1a1206}
+  .x-list{display:flex;flex-direction:column}
+  a.x-item{display:block;text-decoration:none;padding:11px 2px;border-bottom:1px solid var(--grid)}
+  a.x-item:last-child{border-bottom:0}
+  a.x-item:hover .x-txt{color:var(--accent)}
+  .x-txt{font-size:13px;color:var(--ink-1);line-height:1.45;transition:color .12s;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .x-meta{font-size:11px;color:var(--ink-3);margin-top:4px}
+  .x-upd{font-size:11px;color:var(--ink-3)}
   /* ---------- pozisyon kartları ---------- */
   .pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   .pos-card{margin-bottom:0}
@@ -320,6 +332,14 @@
       </section>
     </div>
   </div>
+
+  <section class="card-glass" id="xCard" style="display:none">
+    <div class="card-head">
+      <div><h2>X · Posts</h2><div class="sub-h" id="xUpd">Selected accounts · refreshed hourly</div></div>
+      <div class="x-tabs" id="xTabs"></div>
+    </div>
+    <div class="x-list" id="xList"></div>
+  </section>
 
   <div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
 </div>
@@ -931,6 +951,48 @@ function renderDonut(){
 }
 /* ================= news ================= */
 
+/* ================= X posts (GitHub Actions -> tweets.json, saatlik) ================= */
+const X_LABELS={'enes1050392':'EnesInvestUS','DSAkdag':'DSAkdag'};
+let X_DATA=null;
+function timeAgo(d){
+  const t=new Date(d).getTime(); if(!isFinite(t)) return '';
+  const m=Math.floor((Date.now()-t)/60000);
+  if(m<1) return 'now'; if(m<60) return m+'m'; if(m<1440) return Math.floor(m/60)+'h';
+  return Math.floor(m/1440)+'d';
+}
+function renderTweets(){
+  if(!X_DATA) return;
+  const handles=Object.keys(X_DATA.accounts||{});
+  if(!handles.length) return;
+  if(!S.xTab || !X_DATA.accounts[S.xTab]) S.xTab=handles[0];
+  const tabs=$('xTabs'); tabs.textContent='';
+  handles.forEach(h=>{
+    const b=document.createElement('button');
+    b.textContent='@'+(X_LABELS[h]||h);
+    if(h===S.xTab) b.classList.add('on');
+    b.onclick=()=>{ S.xTab=h; renderTweets(); };
+    tabs.appendChild(b);
+  });
+  const acc=X_DATA.accounts[S.xTab];
+  const list=$('xList'); list.textContent='';
+  (acc.tweets||[]).forEach(t=>{
+    const a=document.createElement('a'); a.className='x-item'; a.href=t.url; a.target='_blank'; a.rel='noopener noreferrer';
+    const tx=document.createElement('div'); tx.className='x-txt'; tx.textContent=t.text;
+    const m=document.createElement('div'); m.className='x-meta';
+    m.textContent='@'+S.xTab+(t.date?' · '+timeAgo(t.date):'');
+    a.append(tx,m); list.appendChild(a);
+  });
+  $('xUpd').textContent='@'+S.xTab+' · updated '+(acc.updated||'—');
+  $('xCard').style.display='';
+}
+async function fetchTweets(){
+  try{
+    const r=await fetch('tweets.json?t='+Date.now());
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j && j.accounts && Object.keys(j.accounts).length){ X_DATA=j; renderTweets(); }
+  }catch(e){}
+}
 /* ================= canlı haber şeridi (GitHub Actions -> news.json, saatlik) ================= */
 function renderNewsStrip(items){
   const list=$('newsList'); if(!list) return;
@@ -1135,6 +1197,8 @@ fetchLive();
 setInterval(fetchLive, 60000);
 fetchNews();
 setInterval(fetchNews, 15*60000);
+fetchTweets();
+setInterval(fetchTweets, 15*60000);
 </script>
 </body>
 </html>
