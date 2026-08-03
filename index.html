@@ -100,6 +100,12 @@
   .chart-box{position:relative;margin:6px -6px 0}
   .chart-box svg{display:block;width:100%}
   #chart path.ln-total{filter:drop-shadow(0 0 7px rgba(232,182,71,0.38))}
+  .chart-toggle{position:absolute;top:8px;left:8px;z-index:6;display:flex;gap:2px;background:var(--chip);
+    border:1px solid var(--border);border-radius:11px;padding:3px;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .chart-toggle button{border:0;background:transparent;color:var(--ink-2);font-size:11.5px;font-weight:650;
+    font-family:inherit;padding:4px 11px;border-radius:8px;cursor:pointer}
+  .chart-toggle button.on{background:var(--accent-grad);color:#1a1206}
   .chart-leg{display:flex;gap:16px;flex-wrap:wrap;margin:10px 4px 0;font-size:11.5px;color:var(--ink-2)}
   .chart-leg .ci{display:inline-flex;align-items:center;gap:6px}
   .chart-leg i{width:14px;height:3px;border-radius:2px;display:inline-block}
@@ -316,6 +322,10 @@
       </div>
     </div>
     <div class="chart-box" id="chartBox">
+      <div class="chart-toggle" id="chartModeT">
+        <button data-m="total">Total portfolio</button>
+        <button data-m="detail">Detail</button>
+      </div>
       <svg id="chart" height="320" role="img" aria-label="Portfolio value time series"></svg>
       <div class="tip" id="chartTip"></div>
     </div>
@@ -479,6 +489,7 @@ const CHART_KEYS=[
   {k:'cr',  name:'Crypto',    color:'var(--s3)'},
 ];
 const curPoint = () => ({t:Date.now(), v:totalUSD(), us:clsUSD('ABD'), bist:clsUSD('BIST'), cr:clsUSD('Kripto')});
+const activeKeys = () => S.chartMode==='detail' ? CHART_KEYS.slice(1) : [CHART_KEYS[0]];
 /* ================= geçmiş: history.json (3 Ağu 2026'dan itibaren gerçek günlük kapanışlar) =================
    Her hafta içi günü ABD kapanışından sonra GitHub Actions (hist.yml) günün portföy değerini
    history.json'a ekler. Grafik bu seriyi okur; gün içi Today görünümü canlı fiyatlardan üretilir. */
@@ -595,10 +606,11 @@ function renderChart(){
   chartData=data;
   chartFirst={};
   CHART_KEYS.forEach(s=>{ const f0=data.find(p=>p[s.k]!=null&&isFinite(p[s.k])); chartFirst[s.k]=f0?f0[s.k]:null; });
-  // y ekseni: ortak mutlak bakiye (USD) — tüm çizgiler aynı eksene göre konumlanır;
-  // aralık en düşük varlık grubunun değerinden başlar, en yükseğe kadar gider.
+  // y ekseni: ortak mutlak bakiye (USD) — aktif moddaki çizgiler ortak eksende;
+  // aralık en düşük değerden başlar, en yükseğe kadar gider.
+  const AK=activeKeys();
   let lo=Infinity, hi=-Infinity;
-  data.forEach(p=>CHART_KEYS.forEach(s=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<lo)lo=val; if(val>hi)hi=val; } }));
+  data.forEach(p=>AK.forEach(s=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<lo)lo=val; if(val>hi)hi=val; } }));
   if(!isFinite(lo)){ lo=0; hi=1; }
   const pad=(hi-lo)*0.04||hi*0.01; lo-=pad; hi+=pad;
   const x=t=>M.l+(t-data[0].t)/(data[data.length-1].t-data[0].t||1)*(W-M.l-M.r);
@@ -631,24 +643,28 @@ function renderChart(){
     const tx=el('text',{x:chartPts[idx].px,y:H-8,fill:'var(--ink-3)','font-size':11,'text-anchor':i===0?'start':(i===nx-1?'end':'middle')});
     tx.textContent=xLabel(data[idx].t,S.range); svg.appendChild(tx);
   }
-  // area + line
+  const detail = S.chartMode==='detail';
   const lineD=chartPts.map((p,i)=>(i?'L':'M')+p.px.toFixed(1)+' '+p.py.toFixed(1)).join('');
-  svg.appendChild(el('path',{d:lineD+'L'+chartPts[chartPts.length-1].px+' '+y(lo)+'L'+chartPts[0].px+' '+y(lo)+'Z',fill:'url(#agrad)'}));
-  // sınıf çizgileri (US / BIST / Crypto) — ortak eksende gerçek değerleriyle
-  CHART_KEYS.slice(1).forEach(s=>{
-    if(!chartFirst[s.k]) return;
-    const pts2=[];
-    data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(val)]); });
-    if(pts2.length<2) return;
-    const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
-    svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.6,'stroke-linejoin':'round','stroke-linecap':'round',opacity:0.95}));
-  });
-  svg.appendChild(el('path',{d:lineD,fill:'none',stroke:'var(--accent)','stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round','class':'ln-total'}));
-  // lejant
+  if(!detail){
+    // Total: alan + altın çizgi (eski görünüm)
+    svg.appendChild(el('path',{d:lineD+'L'+chartPts[chartPts.length-1].px+' '+y(lo)+'L'+chartPts[0].px+' '+y(lo)+'Z',fill:'url(#agrad)'}));
+    svg.appendChild(el('path',{d:lineD,fill:'none',stroke:'var(--accent)','stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round','class':'ln-total'}));
+  } else {
+    // Detail: sadece varlık grubu çizgileri
+    CHART_KEYS.slice(1).forEach(s=>{
+      if(!chartFirst[s.k]) return;
+      const pts2=[];
+      data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(val)]); });
+      if(pts2.length<2) return;
+      const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
+      svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.8,'stroke-linejoin':'round','stroke-linecap':'round'}));
+    });
+  }
+  // lejant (sadece detail modda)
   const leg=$('chartLeg');
   if(leg){
     leg.textContent='';
-    CHART_KEYS.forEach(s=>{
+    if(detail) CHART_KEYS.slice(1).forEach(s=>{
       const it=document.createElement('span'); it.className='ci';
       const sw=document.createElement('i'); sw.style.background=s.color;
       it.appendChild(sw); it.append(s.name); leg.appendChild(it);
@@ -657,11 +673,13 @@ function renderChart(){
   // crosshair (gizli başlar)
   svg.appendChild(el('line',{id:'xhair',x1:0,x2:0,y1:M.t,y2:H-M.b,stroke:'var(--axis)','stroke-width':1,opacity:0}));
   svg.appendChild(el('circle',{id:'xdot',r:4.5,fill:'var(--accent)',stroke:'var(--surface-1)','stroke-width':2,opacity:0}));
-  // uç noktası + etiket
+  // uç noktası + etiket (yalnız Total modda)
   const lastP=chartPts[chartPts.length-1];
-  svg.appendChild(el('circle',{cx:lastP.px,cy:lastP.py,r:4.5,fill:'var(--accent)',stroke:'var(--surface-1)','stroke-width':2}));
-  const endT=el('text',{x:lastP.px-8,y:Math.max(M.t+10,lastP.py-10),'text-anchor':'end',fill:'var(--ink-1)','font-size':12,'font-weight':650});
-  endT.textContent=mv(compactUSD(last)); svg.appendChild(endT);
+  if(!detail){
+    svg.appendChild(el('circle',{cx:lastP.px,cy:lastP.py,r:4.5,fill:'var(--accent)',stroke:'var(--surface-1)','stroke-width':2}));
+    const endT=el('text',{x:lastP.px-8,y:Math.max(M.t+10,lastP.py-10),'text-anchor':'end',fill:'var(--ink-1)','font-size':12,'font-weight':650});
+    endT.textContent=mv(compactUSD(last)); svg.appendChild(endT);
+  }
   // hover overlay
   const ov=el('rect',{x:M.l,y:M.t,width:W-M.l-M.r,height:H-M.t-M.b,fill:'transparent'});
   ov.style.cursor='crosshair';
@@ -676,11 +694,11 @@ function onHover(e){
   for(const p of chartPts) if(Math.abs(p.px-mx)<Math.abs(best.px-mx)) best=p;
   const xh=document.getElementById('xhair'), xd=document.getElementById('xdot');
   xh.setAttribute('x1',best.px); xh.setAttribute('x2',best.px); xh.setAttribute('opacity',1);
-  xd.setAttribute('cx',best.px); xd.setAttribute('cy',best.py); xd.setAttribute('opacity',1);
+  if(S.chartMode!=='detail'){ xd.setAttribute('cx',best.px); xd.setAttribute('cy',best.py); xd.setAttribute('opacity',1); }
   tip.textContent='';
   const idx=chartPts.indexOf(best);
   const pd=chartData[idx]||{};
-  CHART_KEYS.forEach(s=>{
+  activeKeys().forEach(s=>{
     const val=pd[s.k]; if(val==null||!isFinite(val)) return;
     const f0=chartFirst[s.k];
     const pc=(f0!=null&&isFinite(f0)&&f0!==0)?(val/f0-1):null;
@@ -1327,6 +1345,22 @@ $('themeBtn').onclick=()=>{
   applyTheme();
 };
 applyTheme();
+/* ---- grafik modu: Total portfolio / Detail ---- */
+S.chartMode='total';
+try{ if(localStorage.getItem('chartMode')==='detail') S.chartMode='detail'; }catch(e){}
+function syncChartMode(){
+  document.querySelectorAll('#chartModeT button').forEach(b=>b.classList.toggle('on', b.dataset.m===S.chartMode));
+}
+document.querySelectorAll('#chartModeT button').forEach(b=>{
+  b.onclick=()=>{
+    S.chartMode=b.dataset.m;
+    try{ localStorage.setItem('chartMode', S.chartMode); }catch(e){}
+    syncChartMode();
+    renderChart();
+  };
+});
+syncChartMode();
+renderChart();
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
