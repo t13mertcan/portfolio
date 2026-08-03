@@ -606,16 +606,24 @@ function renderChart(){
   chartData=data;
   chartFirst={};
   CHART_KEYS.forEach(s=>{ const f0=data.find(p=>p[s.k]!=null&&isFinite(p[s.k])); chartFirst[s.k]=f0?f0[s.k]:null; });
-  // y ekseni: ortak mutlak bakiye (USD) — aktif moddaki çizgiler ortak eksende;
-  // aralık en düşük değerden başlar, en yükseğe kadar gider.
+  // Total modu: eksen = Total'in mutlak bakiyesi (sıkı aralık).
+  // Detail modu: eksen = aralık başlangıcına göre % değişim — her çizgi tam detayla hareket eder.
   const AK=activeKeys();
+  const isDetail = S.chartMode==='detail';
+  const pv=(k,val)=>(val/chartFirst[k]-1)*100;
   let lo=Infinity, hi=-Infinity;
-  data.forEach(p=>AK.forEach(s=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<lo)lo=val; if(val>hi)hi=val; } }));
-  if(!isFinite(lo)){ lo=0; hi=1; }
-  const pad=(hi-lo)*0.04||hi*0.01; lo-=pad; hi+=pad;
+  data.forEach(p=>AK.forEach(s=>{
+    const val=p[s.k]; if(val==null||!isFinite(val)) return;
+    const q=isDetail ? (chartFirst[s.k]?pv(s.k,val):null) : val;
+    if(q==null) return;
+    if(q<lo)lo=q; if(q>hi)hi=q;
+  }));
+  if(!isFinite(lo)){ lo=isDetail?-1:0; hi=1; }
+  if(isDetail && hi-lo<0.05){ const m0=(hi+lo)/2; lo=m0-0.03; hi=m0+0.03; }
+  const pad=(hi-lo)*(isDetail?0.08:0.04)||hi*0.01; lo-=pad; hi+=pad;
   const x=t=>M.l+(t-data[0].t)/(data[data.length-1].t-data[0].t||1)*(W-M.l-M.r);
   const y=v=>M.t+(1-(v-lo)/(hi-lo))*(H-M.t-M.b);
-  chartPts=data.map(p=>({px:x(p.t),py:y(p.v),t:p.t,v:p.v}));
+  chartPts=data.map(p=>({px:x(p.t),py:isDetail?M.t:y(p.v),t:p.t,v:p.v}));
   chartGeom={W,H,M};
   const N='http://www.w3.org/2000/svg';
   const el=(n,at)=>{const e=document.createElementNS(N,n);for(const k in at)e.setAttribute(k,at[k]);return e};
@@ -634,7 +642,7 @@ function renderChart(){
     svg.appendChild(el('line',{x1:M.l,x2:W-M.r,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1}));
     const tx=el('text',{x:W-M.r+8,y:y(v)+4,fill:'var(--ink-3)','font-size':11,'font-family':'inherit'});
     tx.style.fontVariantNumeric='tabular-nums';
-    tx.textContent=S.priv?'':compactUSD(v); svg.appendChild(tx);
+    tx.textContent=isDetail ? ((v>=0?'+':'')+v.toFixed(Math.abs(hi-lo)<2?2:1)+'%') : (S.priv?'':compactUSD(v)); svg.appendChild(tx);
   });
   // x labels
   const nx=Math.min(6,data.length);
@@ -650,11 +658,11 @@ function renderChart(){
     svg.appendChild(el('path',{d:lineD+'L'+chartPts[chartPts.length-1].px+' '+y(lo)+'L'+chartPts[0].px+' '+y(lo)+'Z',fill:'url(#agrad)'}));
     svg.appendChild(el('path',{d:lineD,fill:'none',stroke:'var(--accent)','stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round','class':'ln-total'}));
   } else {
-    // Detail: sadece varlık grubu çizgileri
+    // Detail: sadece varlık grubu çizgileri (% değişim ekseninde)
     CHART_KEYS.slice(1).forEach(s=>{
       if(!chartFirst[s.k]) return;
       const pts2=[];
-      data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(val)]); });
+      data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(pv(s.k,val))]); });
       if(pts2.length<2) return;
       const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
       svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.8,'stroke-linejoin':'round','stroke-linecap':'round'}));
