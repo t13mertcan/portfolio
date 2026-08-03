@@ -1021,10 +1021,19 @@ function openAssetModal(p, backCls){
   x.onclick=()=>$('modalBg').classList.remove('open');
   head.append(hl,x); box.appendChild(head);
   const sym=tvSymbolFor(p);
-  // 1D line chart
+  // line chart — 1D/5D/1M/3M aralık sekmeleri widget içinde
   const ch=document.createElement('div');
-  ch.style.cssText='height:240px;border-radius:12px;overflow:hidden;margin-bottom:14px';
-  tvWidget(ch,'embed-widget-mini-symbol-overview.js',{symbol:sym,width:'100%',height:240,locale:'en',dateRange:'1D',colorTheme:S.theme,isTransparent:false,autosize:false,chartOnly:false});
+  ch.style.cssText='height:330px;border-radius:12px;overflow:hidden;margin-bottom:14px';
+  tvWidget(ch,'embed-widget-symbol-overview.js',{
+    symbols:[[p.tk, sym+'|1D']],
+    chartOnly:false, width:'100%', height:330, locale:'en',
+    colorTheme:S.theme, isTransparent:false, autosize:false,
+    showVolume:false, hideDateRanges:false, hideMarketStatus:false, hideSymbolLogo:false,
+    scalePosition:'right', scaleMode:'Normal',
+    dateRanges:['1d|1','5d|15','1m|60','3m|1D'],
+    chartType:'line', lineWidth:2, headerFontSize:'medium',
+    fontFamily:'-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif'
+  });
   box.appendChild(ch);
   // sembole özel haberler
   const nh=document.createElement('div'); nh.className='sub-h'; nh.style.margin='0 0 8px'; nh.textContent='Latest news · '+p.tk;
