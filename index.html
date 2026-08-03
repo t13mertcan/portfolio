@@ -361,6 +361,7 @@
 /* ================= data ================= */
 const CLASSES = {
   ABD:   {name:'US Stocks', v:'--s1'},
+  RET:   {name:'Retirement Savings', v:'--s4'},
   BIST:  {name:'BIST',      v:'--s2'},
   Kripto:{name:'Crypto',    v:'--s3'},
   Metal: {name:'Metals',    v:'--s4'},
@@ -387,8 +388,8 @@ const POSITIONS = [
   {tk:'TAVHL', cls:'BIST', ccy:'TRY', qty:104,      avg:280.00, price:277.75, live:null},
   {tk:'CWENE', cls:'BIST', ccy:'TRY', qty:852,      avg:34.00,  price:34.16,  live:null},
   // ABD — Midas (3 Ağu 2026)
-  {tk:'VOO',  cls:'ABD', ccy:'USD', qty:14.475082489, avg:615.99,  price:691.69,  live:null},
-  {tk:'QQQM', cls:'ABD', ccy:'USD', qty:35.197022873, avg:249.79,  price:284.14,  live:null},
+  {tk:'VOO',  cls:'RET', ccy:'USD', qty:14.475082489, avg:615.99,  price:691.69,  live:null},
+  {tk:'QQQM', cls:'RET', ccy:'USD', qty:35.197022873, avg:249.79,  price:284.14,  live:null},
   {tk:'SMH',  cls:'ABD', ccy:'USD', qty:4.280853128,  avg:525.60,  price:525.75,  live:null},
   {tk:'IHAK', cls:'ABD', ccy:'USD', qty:36.270264998, avg:62.03,   price:62.07,   live:null},
   {tk:'GRID', cls:'ABD', ccy:'USD', qty:12.618799248, avg:178.31,  price:178.34,  live:null},
@@ -660,7 +661,7 @@ function renderTable(){
   let hL=0, hR=0;
   const put=(card,rows)=>{ const est=110+rows*44; if(hL<=hR){ colL.appendChild(card); hL+=est; } else { colR.appendChild(card); hR+=est; } };
   const N='http://www.w3.org/2000/svg';
-  ['ABD','BIST','Kripto','Nakit'].forEach(cls=>{
+  ['ABD','RET','BIST','Kripto','Nakit'].forEach(cls=>{
     const items=POSITIONS.filter(p=>p.cls===cls);
     const card=document.createElement('section'); card.className='card-glass pos-card';
     const hd=document.createElement('div'); hd.className='pos-head';
@@ -920,7 +921,7 @@ function renderDonut(){
   const N='http://www.w3.org/2000/svg';
   const tv=totalUSD();
   const by={}; POSITIONS.forEach(p=>{ by[p.cls]=(by[p.cls]||0)+valUSD(p); });
-  const order=['ABD','BIST','Kripto','Nakit'].filter(k=>by[k]);
+  const order=['ABD','RET','BIST','Kripto','Nakit'].filter(k=>by[k]);
   const R=55, C=2*Math.PI*R, cx=75, cy=75, gap=2.5;
   let off=0;
   order.forEach(k=>{
@@ -1059,7 +1060,7 @@ async function fetchYahoo(){
     tvScan('turkey', bist.map(p=>'BIST:'+p.tk).concat(['BIST:XU100'])),
     tvScan('global', TV_GLOBAL.flatMap(x=>x[1])
       .concat(['BINANCE:BTCUSDT','BINANCE:ETHUSDT'])
-      .concat(POSITIONS.filter(p=>p.cls==='ABD').flatMap(p=>['NASDAQ:'+p.tk,'NYSE:'+p.tk,'AMEX:'+p.tk])))
+      .concat(POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').flatMap(p=>['NASDAQ:'+p.tk,'NYSE:'+p.tk,'AMEX:'+p.tk])))
   ]);
   let any=false, dayReal=0, anyPrev=false;
   // kur önce — gram hesapları buna bağlı
@@ -1073,7 +1074,7 @@ async function fetchYahoo(){
   });
   // ABD hisseleri/ETF'leri: NASDAQ/NYSE/AMEX öneklerinden dönen ilk sonuç
   const US_PRE=['NASDAQ:','NYSE:','AMEX:'];
-  POSITIONS.filter(p=>p.cls==='ABD').forEach(p=>{
+  POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').forEach(p=>{
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
       if(o){
