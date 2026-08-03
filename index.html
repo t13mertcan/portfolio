@@ -100,6 +100,8 @@
   .chart-box{position:relative;margin:6px -6px 0}
   .chart-box svg{display:block;width:100%}
   #chart path.ln-total{filter:drop-shadow(0 0 7px rgba(232,182,71,0.38))}
+  .tk-link{cursor:pointer;border-bottom:1px dashed var(--ink-3)}
+  .tk-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
   .chart-toggle{position:absolute;top:8px;left:8px;z-index:6;display:flex;gap:2px;background:var(--chip);
     border:1px solid var(--border);border-radius:11px;padding:3px;
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
@@ -960,6 +962,10 @@ function openClassModal(cls){
     const tk=document.createElement('div'); tk.className='tk';
     const d2=document.createElement('span'); d2.className='dot'; d2.style.background='var('+PALETTE[i%8]+')';
     const n2=document.createElement('span'); n2.className='nm'; n2.textContent=p.tk;
+    if(cls!=='Nakit'){
+      n2.className='nm tk-link'; n2.title='Chart & news';
+      n2.addEventListener('click',()=>openAssetModal(p,cls));
+    }
     tk.append(d2,n2); c0.appendChild(tk); tr.appendChild(c0);
     const cells=[
       (val(p)/total*100).toFixed(1)+'%',
@@ -975,6 +981,58 @@ function openClassModal(cls){
     tb.appendChild(tr);
   });
   tbl.appendChild(tb); wrap.appendChild(tbl); box.appendChild(wrap);
+  $('modalBg').classList.add('open');
+}
+/* ================= varlık detay paneli (TV chart + haberler) ================= */
+function tvSymbolFor(p){
+  if(p.cls==='BIST') return 'BIST:'+p.tk;
+  if(p.cls==='Kripto') return 'BINANCE:'+p.tk+'USDT';
+  return (p.ex||'')+p.tk;
+}
+function tvWidget(container, script, cfg){
+  const wrap=document.createElement('div'); wrap.className='tradingview-widget-container';
+  const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget';
+  const sc=document.createElement('script');
+  sc.src='https://s3.tradingview.com/external-embedding/'+script;
+  sc.async=true;
+  sc.text=JSON.stringify(cfg);
+  wrap.appendChild(inner); wrap.appendChild(sc); container.appendChild(wrap);
+}
+function openAssetModal(p, backCls){
+  const box=$('modalBox'); box.textContent='';
+  const isTL=p.cls==='BIST';
+  const head=document.createElement('div'); head.className='modal-head';
+  const hl=document.createElement('div');
+  const t1=document.createElement('div'); t1.className='tk';
+  const back=document.createElement('button'); back.className='icon-btn'; back.textContent='←';
+  back.style.padding='4px 10px'; back.title='Back to '+CLASSES[backCls].name;
+  back.onclick=()=>openClassModal(backCls);
+  const nm=document.createElement('span'); nm.className='ph-nm'; nm.style.fontSize='17px'; nm.textContent=p.tk;
+  const cn=document.createElement('span'); cn.className='sub-h'; cn.textContent=CLASSES[p.cls].name;
+  t1.append(back,nm,cn); hl.appendChild(t1);
+  const sub=document.createElement('div'); sub.className='sub-h'; sub.style.marginTop='6px';
+  const v0=isTL ? p.qty*p.price : valUSD(p);
+  const c0=isTL ? p.qty*p.avg : costUSD(p);
+  const pl0=v0-c0;
+  const fmt=isTL?fmtTRY:fmtUSD;
+  sub.textContent=fmtNum.format(p.qty)+' × '+fmtNum.format(p.price)+' '+p.ccy+' = '+mv(fmt.format(v0))+' · P/L '+mv(fmtSignC(pl0,isTL))+' ('+fmtPct(c0?pl0/c0:0)+')';
+  hl.appendChild(sub);
+  const x=document.createElement('button'); x.className='modal-close'; x.textContent='✕';
+  x.onclick=()=>$('modalBg').classList.remove('open');
+  head.append(hl,x); box.appendChild(head);
+  const sym=tvSymbolFor(p);
+  // 1D line chart
+  const ch=document.createElement('div');
+  ch.style.cssText='height:240px;border-radius:12px;overflow:hidden;margin-bottom:14px';
+  tvWidget(ch,'embed-widget-mini-symbol-overview.js',{symbol:sym,width:'100%',height:240,locale:'en',dateRange:'1D',colorTheme:S.theme,isTransparent:true,autosize:false,chartOnly:false});
+  box.appendChild(ch);
+  // sembole özel haberler
+  const nh=document.createElement('div'); nh.className='sub-h'; nh.style.margin='0 0 8px'; nh.textContent='Latest news · '+p.tk;
+  box.appendChild(nh);
+  const nw=document.createElement('div');
+  nw.style.cssText='height:330px;border-radius:12px;overflow:hidden';
+  tvWidget(nw,'embed-widget-timeline.js',{feedMode:'symbol',symbol:sym,displayMode:'regular',colorTheme:S.theme,isTransparent:true,width:'100%',height:330,locale:'en'});
+  box.appendChild(nw);
   $('modalBg').classList.add('open');
 }
 $('modalBg').addEventListener('click',e=>{ if(e.target===$('modalBg')) $('modalBg').classList.remove('open'); });
@@ -1194,7 +1252,7 @@ async function fetchYahoo(){
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
       if(o){
-        p.price=o.price; p.yh=true; any=true;
+        p.price=o.price; p.yh=true; any=true; p.ex=pre;
         if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty; }
         break;
       }
