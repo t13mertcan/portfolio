@@ -1024,14 +1024,14 @@ function openAssetModal(p, backCls){
   // 1D line chart
   const ch=document.createElement('div');
   ch.style.cssText='height:240px;border-radius:12px;overflow:hidden;margin-bottom:14px';
-  tvWidget(ch,'embed-widget-mini-symbol-overview.js',{symbol:sym,width:'100%',height:240,locale:'en',dateRange:'1D',colorTheme:S.theme,isTransparent:true,autosize:false,chartOnly:false});
+  tvWidget(ch,'embed-widget-mini-symbol-overview.js',{symbol:sym,width:'100%',height:240,locale:'en',dateRange:'1D',colorTheme:S.theme,isTransparent:false,autosize:false,chartOnly:false});
   box.appendChild(ch);
   // sembole özel haberler
   const nh=document.createElement('div'); nh.className='sub-h'; nh.style.margin='0 0 8px'; nh.textContent='Latest news · '+p.tk;
   box.appendChild(nh);
   const nw=document.createElement('div');
   nw.style.cssText='height:330px;border-radius:12px;overflow:hidden';
-  tvWidget(nw,'embed-widget-timeline.js',{feedMode:'symbol',symbol:sym,displayMode:'regular',colorTheme:S.theme,isTransparent:true,width:'100%',height:330,locale:'en'});
+  tvWidget(nw,'embed-widget-timeline.js',{feedMode:'symbol',symbol:sym,displayMode:'regular',colorTheme:S.theme,isTransparent:false,width:'100%',height:330,locale:'en'});
   box.appendChild(nw);
   $('modalBg').classList.add('open');
 }
