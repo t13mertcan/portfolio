@@ -248,6 +248,7 @@
     </div>
     <div class="h-right">
       <span class="stamp" id="stamp">—</span>
+      <button class="icon-btn" id="privBtn" title="Hide amounts">👁</button>
       <button class="icon-btn" id="refreshBtn" title="Refresh live prices">↻ Refresh</button>
       <button class="icon-btn" id="settingsBtn" title="Settings">⚙ Settings</button>
     </div>
@@ -425,7 +426,10 @@ const RATES=[
 ];
 const rateById = id => RATES.find(r=>r.id===id);
 /* ================= state ================= */
-const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: 'Today', daily: [], intraday: [], prevClose: 0 };
+const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: 'Today', daily: [], intraday: [], prevClose: 0, priv: false };
+try{ S.priv = localStorage.getItem('privMode')==='1'; }catch(e){}
+const MASK='***';
+const mv = s => S.priv ? MASK : s; // varlık tutarlarını gizle (yüzdeler hep görünür)
 const $ = id => document.getElementById(id);
 const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 /* ================= helpers ================= */
@@ -542,7 +546,7 @@ function renderChart(){
   const first=data[0].v, last=data[data.length-1].v;
   const delta=last-first, pct=first? delta/first : 0;
   const rd=$('rangeDelta');
-  rd.textContent = fmtSign(delta)+' ('+fmtPct(pct)+')';
+  rd.textContent = mv(fmtSign(delta))+' ('+fmtPct(pct)+')';
   rd.className='range-delta delta '+(delta>=0?'up':'down');
   $('rangeLabel').textContent = {Today:'today',"1W":'past week','1M':'past month','2M':'past 2 months','3M':'past 3 months','6M':'past 6 months','1Y':'past year','MAX':'since Jan 2025','YTD':'year to date'}[S.range];
   let lo=Math.min(...data.map(p=>p.v)), hi=Math.max(...data.map(p=>p.v));
@@ -568,7 +572,7 @@ function renderChart(){
     svg.appendChild(el('line',{x1:M.l,x2:W-M.r,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1}));
     const tx=el('text',{x:W-M.r+8,y:y(v)+4,fill:'var(--ink-3)','font-size':11,'font-family':'inherit'});
     tx.style.fontVariantNumeric='tabular-nums';
-    tx.textContent=compactUSD(v); svg.appendChild(tx);
+    tx.textContent=S.priv?'':compactUSD(v); svg.appendChild(tx);
   });
   // x labels
   const nx=Math.min(6,data.length);
@@ -588,7 +592,7 @@ function renderChart(){
   const lastP=chartPts[chartPts.length-1];
   svg.appendChild(el('circle',{cx:lastP.px,cy:lastP.py,r:4.5,fill:'var(--accent)',stroke:'var(--surface-1)','stroke-width':2}));
   const endT=el('text',{x:lastP.px-8,y:Math.max(M.t+10,lastP.py-10),'text-anchor':'end',fill:'var(--ink-1)','font-size':12,'font-weight':650});
-  endT.textContent=compactUSD(last); svg.appendChild(endT);
+  endT.textContent=mv(compactUSD(last)); svg.appendChild(endT);
   // hover overlay
   const ov=el('rect',{x:M.l,y:M.t,width:W-M.l-M.r,height:H-M.t-M.b,fill:'transparent'});
   ov.style.cursor='crosshair';
@@ -605,7 +609,7 @@ function onHover(e){
   xh.setAttribute('x1',best.px); xh.setAttribute('x2',best.px); xh.setAttribute('opacity',1);
   xd.setAttribute('cx',best.px); xd.setAttribute('cy',best.py); xd.setAttribute('opacity',1);
   tip.textContent='';
-  const v=document.createElement('div'); v.className='tv'; v.textContent=fmtUSD2.format(best.v);
+  const v=document.createElement('div'); v.className='tv'; v.textContent=mv(fmtUSD2.format(best.v));
   const l=document.createElement('div'); l.className='tl'; l.textContent=tipLabel(best.t,S.range);
   tip.appendChild(v); tip.appendChild(l);
   const bw=$('chartBox').clientWidth;
@@ -621,13 +625,13 @@ function hideTip(){
 /* ================= tiles ================= */
 function renderTiles(){
   const tv=totalUSD(), tc=totalCost();
-  $('tvVal').textContent=fmtUSD.format(tv);
-  $('tvSub').textContent='≈ '+fmtTRY.format(tv*S.fx)+' · '+POSITIONS.length+' open positions';
+  $('tvVal').textContent=mv(fmtUSD.format(tv));
+  $('tvSub').textContent=(S.priv?MASK:'≈ '+fmtTRY.format(tv*S.fx))+' · '+POSITIONS.length+' open positions';
   const day=tv-S.prevClose, dayP=S.prevClose?day/S.prevClose:0;
-  const dv=$('dayVal'); dv.textContent=fmtSign(day); dv.style.color=day>=0?'var(--up)':'var(--down)';
+  const dv=$('dayVal'); dv.textContent=mv(fmtSign(day)); dv.style.color=day>=0?'var(--up)':'var(--down)';
   const dp=$('dayPct'); dp.textContent=(day>=0?'▲ ':'▼ ')+fmtPct(dayP); dp.className='delta '+(day>=0?'up':'down');
   const tot=tv-tc, totP=tc?tot/tc:0;
-  const tvv=$('totVal'); tvv.textContent=fmtSign(tot); tvv.style.color=tot>=0?'var(--up)':'var(--down)';
+  const tvv=$('totVal'); tvv.textContent=mv(fmtSign(tot)); tvv.style.color=tot>=0?'var(--up)':'var(--down)';
   const tp=$('totPct'); tp.textContent=(tot>=0?'▲ ':'▼ ')+fmtPct(totP); tp.className='delta '+(tot>=0?'up':'down');
   // gün içi sparkline
   const sp=$('daySpark'); sp.textContent='';
@@ -691,11 +695,11 @@ function renderTable(){
     const more=document.createElement('span'); more.className='ph-more'; more.textContent='▸ details';
     left.append(more);
     const right=document.createElement('div'); right.className='ph-stats';
-    const v=document.createElement('span'); v.className='ph-val'; v.textContent=(isTL?fmtTRY:fmtUSD).format(sumV);
+    const v=document.createElement('span'); v.className='ph-val'; v.textContent=mv((isTL?fmtTRY:fmtUSD).format(sumV));
     const vs=document.createElement('span'); vs.className='ph-sub';
-    vs.textContent='≈ '+(isTL ? fmtUSD.format(sumV/S.fx) : fmtTRY.format(sumV*S.fx));
+    vs.textContent=S.priv?MASK:('≈ '+(isTL ? fmtUSD.format(sumV/S.fx) : fmtTRY.format(sumV*S.fx)));
     const d=document.createElement('span'); d.className='delta '+(hdPL>=0?'up':'down');
-    d.textContent = hdHas ? (mode==='daily'?'today ':'')+fmtSignC(hdPL,isTL)+' ('+fmtPct(hdPLP)+')' : 'today —';
+    d.textContent = hdHas ? (mode==='daily'?'today ':'')+mv(fmtSignC(hdPL,isTL))+' ('+fmtPct(hdPLP)+')' : 'today —';
     if(items.length){ right.append(v,vs,d); } else { v.textContent='—'; right.append(v); }
     hd.append(left,right); card.appendChild(hd);
     hd.addEventListener('click',()=>openClassModal(cls));
@@ -730,7 +734,7 @@ function renderTable(){
       const isLive=(p.live==='cg'||p.live==='gold') ? S.liveOk : (p.live==='fh') ? !!S.fhKey : !!p.yh;
       lc.className='live-chip'+(isLive?' live':''); lc.textContent=isLive?'LIVE':'MANUAL';
       tk.append(nm2,lc); td0.appendChild(tk); tr.appendChild(td0);
-      const td1=document.createElement('td'); td1.textContent=fmtNum.format(p.qty); tr.appendChild(td1);
+      const td1=document.createElement('td'); td1.textContent=(S.priv&&p.cls==='Nakit')?MASK:fmtNum.format(p.qty); tr.appendChild(td1);
       const tdC=document.createElement('td'); tdC.textContent=fmtNum.format(p.avg)+' '+p.ccy; tr.appendChild(tdC);
       const td3=document.createElement('td'); td3.textContent=fmtNum.format(p.price)+' '+p.ccy;
       if(!isLive){ td3.className='editable'; td3.title='Double-click to edit'; td3.addEventListener('dblclick',()=>editPrice(td3,idx)); }
@@ -747,13 +751,13 @@ function renderTable(){
         } else hasPL=false;
       } else { pl2=v2-c2; plp2=c2?pl2/c2:0; }
       const td4=document.createElement('td');
-      const vm=document.createElement('span'); vm.textContent=(isTL?fmtTRY:fmtUSD).format(v2);
+      const vm=document.createElement('span'); vm.textContent=mv((isTL?fmtTRY:fmtUSD).format(v2));
       const vsub=document.createElement('span'); vsub.className='cell-sub';
-      vsub.textContent=isTL ? fmtUSD.format(v2/S.fx) : fmtTRY.format(v2*S.fx);
+      vsub.textContent=S.priv?MASK:(isTL ? fmtUSD.format(v2/S.fx) : fmtTRY.format(v2*S.fx));
       td4.append(vm,vsub); tr.appendChild(td4);
       const td5=document.createElement('td'); const td6=document.createElement('td');
       if(hasPL){
-        td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=fmtSignC(pl2,isTL);
+        td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=mv(fmtSignC(pl2,isTL));
         td6.className='pl-cell '+(pl2>=0?'up':'down'); td6.textContent=fmtPct(plp2);
       } else {
         td5.className='muted'; td5.textContent='—';
@@ -789,7 +793,7 @@ function openClassModal(cls){
   t1.append(dot,nm); hl.appendChild(t1);
   const sub=document.createElement('div'); sub.className='sub-h';
   const pl=total-totalC;
-  sub.textContent=fmt.format(total)+' · P/L '+fmtSignC(pl,isTL)+' ('+fmtPct(totalC?pl/totalC:0)+')';
+  sub.textContent=mv(fmt.format(total))+' · P/L '+mv(fmtSignC(pl,isTL))+' ('+fmtPct(totalC?pl/totalC:0)+')';
   hl.appendChild(sub);
   const x=document.createElement('button'); x.className='modal-close'; x.textContent='✕';
   x.onclick=()=>$('modalBg').classList.remove('open');
@@ -826,7 +830,7 @@ function openClassModal(cls){
     const row=document.createElement('div'); row.className='leg-row';
     const sw=document.createElement('span'); sw.className='sw'; sw.style.background='var('+PALETTE[i%8]+')';
     const ln=document.createElement('span'); ln.className='ln'; ln.textContent=p.tk;
-    const lv=document.createElement('span'); lv.className='lv'; lv.textContent=fmt.format(val(p));
+    const lv=document.createElement('span'); lv.className='lv'; lv.textContent=mv(fmt.format(val(p)));
     const lp=document.createElement('span'); lp.className='lp'; lp.textContent=(val(p)/total*100).toFixed(1)+'%';
     row.append(sw,ln,lv,lp); leg.appendChild(row);
   });
@@ -847,14 +851,14 @@ function openClassModal(cls){
     tk.append(d2,n2); c0.appendChild(tk); tr.appendChild(c0);
     const cells=[
       (val(p)/total*100).toFixed(1)+'%',
-      fmtNum.format(p.qty),
+      (S.priv&&p.cls==='Nakit')?MASK:fmtNum.format(p.qty),
       fmtNum.format(p.avg)+' '+p.ccy,
       fmtNum.format(p.price)+' '+p.ccy,
-      fmt.format(val(p))
+      mv(fmt.format(val(p)))
     ];
     cells.forEach(v3=>{const e=document.createElement('td'); e.textContent=v3; tr.appendChild(e);});
     const pl3=val(p)-cost(p), plp3=cost(p)?pl3/cost(p):0;
-    const e1=document.createElement('td'); e1.className='pl-cell '+(pl3>=0?'up':'down'); e1.textContent=fmtSignC(pl3,isTL); tr.appendChild(e1);
+    const e1=document.createElement('td'); e1.className='pl-cell '+(pl3>=0?'up':'down'); e1.textContent=mv(fmtSignC(pl3,isTL)); tr.appendChild(e1);
     const e2=document.createElement('td'); e2.className='pl-cell '+(pl3>=0?'up':'down'); e2.textContent=fmtPct(plp3); tr.appendChild(e2);
     tb.appendChild(tr);
   });
@@ -935,7 +939,7 @@ function renderDonut(){
     c.setAttribute('stroke-dashoffset',-off);
     c.setAttribute('transform','rotate(-90 '+cx+' '+cy+')');
     const title=document.createElementNS(N,'title');
-    title.textContent=CLASSES[k].name+': '+fmtUSD.format(by[k])+' ('+(frac*100).toFixed(1)+'%)';
+    title.textContent=CLASSES[k].name+': '+mv(fmtUSD.format(by[k]))+' ('+(frac*100).toFixed(1)+'%)';
     c.appendChild(title);
     svg.appendChild(c);
     off+=frac*C;
@@ -943,7 +947,7 @@ function renderDonut(){
   const t1=document.createElementNS(N,'text');
   t1.setAttribute('x',cx); t1.setAttribute('y',cy-2); t1.setAttribute('text-anchor','middle');
   t1.setAttribute('fill','var(--ink-1)'); t1.setAttribute('font-size',17); t1.setAttribute('font-weight',650);
-  t1.textContent=compactUSD(tv); svg.appendChild(t1);
+  t1.textContent=mv(compactUSD(tv)); svg.appendChild(t1);
   const t2=document.createElementNS(N,'text');
   t2.setAttribute('x',cx); t2.setAttribute('y',cy+15); t2.setAttribute('text-anchor','middle');
   t2.setAttribute('fill','var(--ink-3)'); t2.setAttribute('font-size',10);
@@ -954,7 +958,7 @@ function renderDonut(){
     const row=document.createElement('div'); row.className='leg-row';
     const sw=document.createElement('span'); sw.className='sw'; sw.style.background='var('+CLASSES[k].v+')';
     const ln=document.createElement('span'); ln.className='ln'; ln.textContent=CLASSES[k].name;
-    const lv=document.createElement('span'); lv.className='lv'; lv.textContent=fmtUSD.format(by[k]);
+    const lv=document.createElement('span'); lv.className='lv'; lv.textContent=mv(fmtUSD.format(by[k]));
     const lp=document.createElement('span'); lp.className='lp'; lp.textContent=(by[k]/tv*100).toFixed(1)+'%';
     row.append(sw,ln,lv,lp); leg.appendChild(row);
   });
@@ -1204,6 +1208,20 @@ async function loadPositions(){
 /* ================= refresh & init ================= */
 function refresh(){ renderTiles(); renderTable(); renderRates(); renderDonut(); renderChart(); }
 $('refreshBtn').onclick=fetchLive;
+function syncPrivBtn(){
+  const b=$('privBtn');
+  b.textContent = S.priv ? '🙈' : '👁';
+  b.title = S.priv ? 'Show amounts' : 'Hide amounts';
+  b.style.background = S.priv ? 'var(--accent-grad)' : '';
+  b.style.color = S.priv ? '#1a1206' : '';
+}
+$('privBtn').onclick=()=>{
+  S.priv=!S.priv;
+  try{ localStorage.setItem('privMode', S.priv?'1':'0'); }catch(e){}
+  syncPrivBtn();
+  refresh();
+};
+syncPrivBtn();
 $('settingsBtn').onclick=()=>{const c=$('settingsCard'); c.style.display = c.style.display==='none' ? '' : 'none';};
 $('fhSave').onclick=()=>{
   const k=$('fhKey').value.trim();
