@@ -253,7 +253,6 @@
       <span class="stamp" id="stamp">—</span>
       <button class="icon-btn priv-btn" id="privBtn" title="Hide amounts"></button>
       <button class="icon-btn" id="refreshBtn" title="Refresh live prices">↻ Refresh</button>
-      <button class="icon-btn" id="settingsBtn" title="Settings">⚙ Settings</button>
     </div>
   </header>
 
@@ -298,19 +297,6 @@
 
 
   <div class="pos-grid"><div class="pos-col" id="posColL"></div><div class="pos-col" id="posColR"></div></div>
-
-  <section class="card-glass" id="settingsCard" style="display:none">
-    <div class="card-head"><div><h2>Settings</h2><div class="sub-h">Live data connections</div></div></div>
-    <div class="tbl-note" style="margin:0 0 12px">TRY-denominated positions are converted to USD at the live USD/TRY rate. Double-click a stock price to update it; add a Finnhub API key to get live US stock quotes.</div>
-    <div class="settings open" id="settingsPanel">
-      <label for="fhKey">Finnhub API key (free — finnhub.io) · live US stock quotes + live news feed</label>
-      <div class="row">
-        <input id="fhKey" type="password" placeholder="Paste your API key" autocomplete="off">
-        <button class="icon-btn" id="fhSave">Connect</button>
-      </div>
-      <div class="hint" id="fhStatus">The key is kept only in this session&#39;s memory and never stored anywhere (you&#39;ll need to re-enter it after a reload). BIST prices are not available on Finnhub&#39;s free tier — they stay manual.</div>
-    </div>
-  </section>
 
   <div class="grid2">
     <section class="card-glass">
@@ -1226,16 +1212,6 @@ $('privBtn').onclick=()=>{
   refresh();
 };
 syncPrivBtn();
-$('settingsBtn').onclick=()=>{const c=$('settingsCard'); c.style.display = c.style.display==='none' ? '' : 'none';};
-$('fhSave').onclick=()=>{
-  const k=$('fhKey').value.trim();
-  if(!k){ $('fhStatus').textContent='Key is empty — not connected.'; return; }
-  S.fhKey=k;
-  $('fhStatus').innerHTML='';
-  const s=document.createElement('span'); s.className='key-ok'; s.textContent='Connected — US stocks and news are now live.';
-  $('fhStatus').appendChild(s);
-  fetchLive();
-};
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
