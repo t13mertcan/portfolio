@@ -289,7 +289,7 @@
       <svg id="chart" height="320" role="img" aria-label="Portfolio value time series"></svg>
       <div class="tip" id="chartTip"></div>
     </div>
-    <div class="tbl-note" style="margin-top:4px">History = today's holdings × real market prices (Yahoo, USD). Series starts Jan 2025 — the newest holding's listing date. Intraday path is interpolated between real endpoints.</div>
+    <div class="tbl-note" style="margin-top:4px">History starts Aug 3, 2026 — a snapshot of the portfolio's value (USD) is saved automatically every weekday after the US close. Longer ranges fill in as days accumulate.</div>
   </section>
 
 
@@ -367,39 +367,45 @@ const CLASSES = {
   Nakit: {name:'Cash',      v:'--s5'},
 };
 const GRAM = 31.1034768;
-// örnek portföy — kendi verinle değiştirilecek
+// Gerçek portföy — Midas Atlas (3 Ağu 2026)
 const POSITIONS = [
-  // BIST — Midas Atlas'tan çekilen gerçek pozisyonlar (30 Tem 2026 kapanışı)
-  {tk:'ESCOM', cls:'BIST', ccy:'TRY', qty:9582,     avg:5.69,   price:5.15,   live:null},
-  {tk:'ISGSY', cls:'BIST', ccy:'TRY', qty:1334.527, avg:21.19,  price:15.33,  live:null},
-  {tk:'A1CAP', cls:'BIST', ccy:'TRY', qty:2644,     avg:11.72,  price:8.67,   live:null},
-  {tk:'EBEBK', cls:'BIST', ccy:'TRY', qty:766,      avg:75.38,  price:84.40,  live:null},
-  {tk:'ATATP', cls:'BIST', ccy:'TRY', qty:136,      avg:155.21, price:228.30, live:null},
-  {tk:'TRALT', cls:'BIST', ccy:'TRY', qty:579,      avg:40.92,  price:46.18,  live:null},
-  {tk:'SANEL', cls:'BIST', ccy:'TRY', qty:364,      avg:49.16,  price:65.50,  live:null},
-  {tk:'KOTON', cls:'BIST', ccy:'TRY', qty:2053,     avg:15.11,  price:12.51,  live:null},
-  {tk:'ARASE', cls:'BIST', ccy:'TRY', qty:256,      avg:125.56, price:111.00, live:null},
-  {tk:'AGHOL', cls:'BIST', ccy:'TRY', qty:839,      avg:34.64,  price:35.46,  live:null},
-  {tk:'ORGE',  cls:'BIST', ccy:'TRY', qty:261,      avg:117.15, price:103.00, live:null},
-  {tk:'TRMET', cls:'BIST', ccy:'TRY', qty:245,      avg:113.38, price:128.20, live:null},
-  {tk:'BIMAS', cls:'BIST', ccy:'TRY', qty:74,       avg:369.16, price:383.00, live:null},
-  {tk:'EFOR',  cls:'BIST', ccy:'TRY', qty:1844,     avg:11.74,  price:21.36,  live:null},
-  {tk:'EUPWR', cls:'BIST', ccy:'TRY', qty:327,      avg:86.16,  price:85.85,  live:null},
-  {tk:'EGEGY', cls:'BIST', ccy:'TRY', qty:969,      avg:29.92,  price:30.30,  live:null},
-  {tk:'YKSLN', cls:'BIST', ccy:'TRY', qty:9102,     avg:3.23,   price:2.90,   live:null},
-  {tk:'HDFGS', cls:'BIST', ccy:'TRY', qty:9180,     avg:3.05,   price:2.55,   live:null},
-  // Metaller — kullanıcının verdiği gerçek veriler (gram, TRY)
-  {tk:'XAU', cls:'Metal', ccy:'TRY', qty:60.32,   avg:6581.56, price:6340.30, live:'xau'},
-  {tk:'XAG', cls:'Metal', ccy:'TRY', qty:1860.64, avg:105.88,  price:89.81,  live:'xag'},
-  // ABD — Midas (30 Tem 2026)
-  {tk:'QQQM', cls:'ABD', ccy:'USD', qty:62.288125663, avg:249.78, price:281.03, live:null},
-  {tk:'VOO',  cls:'ABD', ccy:'USD', qty:27.296051876, avg:615.98, price:680.27, live:null},
-  // Kripto — Midas (30 Tem 2026)
+  // BIST — Midas Atlas (3 Ağu 2026)
+  {tk:'ESCOM', cls:'BIST', ccy:'TRY', qty:10783,    avg:5.66,   price:5.21,   live:null},
+  {tk:'ISGSY', cls:'BIST', ccy:'TRY', qty:1735.527, avg:20.33,  price:17.83,  live:null},
+  {tk:'A1CAP', cls:'BIST', ccy:'TRY', qty:3373,     avg:11.12,  price:8.78,   live:null},
+  {tk:'EBEBK', cls:'BIST', ccy:'TRY', qty:637,      avg:75.38,  price:90.05,  live:null},
+  {tk:'ATATP', cls:'BIST', ccy:'TRY', qty:116,      avg:158.51, price:242.30, live:null},
+  {tk:'TRALT', cls:'BIST', ccy:'TRY', qty:649,      avg:41.34,  price:44.90,  live:null},
+  {tk:'SANEL', cls:'BIST', ccy:'TRY', qty:364,      avg:49.16,  price:69.10,  live:null},
+  {tk:'KOTON', cls:'BIST', ccy:'TRY', qty:2245,     avg:14.89,  price:12.40,  live:null},
+  {tk:'ARASE', cls:'BIST', ccy:'TRY', qty:253,      avg:125.56, price:113.10, live:null},
+  {tk:'AGHOL', cls:'BIST', ccy:'TRY', qty:811,      avg:34.64,  price:35.10,  live:null},
+  {tk:'ORGE',  cls:'BIST', ccy:'TRY', qty:286,      avg:115.76, price:101.90, live:null},
+  {tk:'TRMET', cls:'BIST', ccy:'TRY', qty:236,      avg:113.38, price:123.20, live:null},
+  {tk:'BIMAS', cls:'BIST', ccy:'TRY', qty:76,       avg:369.57, price:378.75, live:null},
+  {tk:'EGEGY', cls:'BIST', ccy:'TRY', qty:1021,     avg:29.84,  price:28.00,  live:null},
+  {tk:'TAVHL', cls:'BIST', ccy:'TRY', qty:104,      avg:280.00, price:277.75, live:null},
+  {tk:'CWENE', cls:'BIST', ccy:'TRY', qty:852,      avg:34.00,  price:34.16,  live:null},
+  // ABD — Midas (3 Ağu 2026)
+  {tk:'VOO',  cls:'ABD', ccy:'USD', qty:14.475082489, avg:615.99,  price:691.69,  live:null},
+  {tk:'QQQM', cls:'ABD', ccy:'USD', qty:35.197022873, avg:249.79,  price:284.14,  live:null},
+  {tk:'SMH',  cls:'ABD', ccy:'USD', qty:4.280853128,  avg:525.60,  price:525.75,  live:null},
+  {tk:'IHAK', cls:'ABD', ccy:'USD', qty:36.270264998, avg:62.03,   price:62.07,   live:null},
+  {tk:'GRID', cls:'ABD', ccy:'USD', qty:12.618799248, avg:178.31,  price:178.34,  live:null},
+  {tk:'WDC',  cls:'ABD', ccy:'USD', qty:2.858228077,  avg:376.29,  price:509.83,  live:null},
+  {tk:'MSFT', cls:'ABD', ccy:'USD', qty:2.8863236,    avg:405.11,  price:490.03,  live:null},
+  {tk:'GOOGL',cls:'ABD', ccy:'USD', qty:4.014012549,  avg:331.31,  price:373.34,  live:null},
+  {tk:'HIMS', cls:'ABD', ccy:'USD', qty:50.814433544, avg:28.54,   price:29.65,   live:null},
+  {tk:'AMZN', cls:'ABD', ccy:'USD', qty:5.051297909,  avg:274.19,  price:284.34,  live:null},
+  {tk:'ELF',  cls:'ABD', ccy:'USD', qty:16.733565307, avg:82.77,   price:84.48,   live:null},
+  {tk:'SNDK', cls:'ABD', ccy:'USD', qty:1.25383674,   avg:1196.33, price:1185.72, live:null},
+  {tk:'INTC', cls:'ABD', ccy:'USD', qty:17.274884431, avg:86.83,   price:86.31,   live:null},
+  // Kripto — Binance (değişmedi)
   {tk:'BTC', cls:'Kripto', ccy:'USD', qty:0.1281791,  avg:71792.28, price:64853.45, live:'cg', cg:'bitcoin'},
   {tk:'ETH', cls:'Kripto', ccy:'USD', qty:4.40961757, avg:2032.29,  price:1920.92,  live:'cg', cg:'ethereum'},
-  // Nakit — Midas (30 Tem 2026)
-  {tk:'USD', cls:'Nakit', ccy:'USD', qty:2907.36, avg:1, price:1, live:null},
-  {tk:'TRY', cls:'Nakit', ccy:'TRY', qty:4886.70, avg:1, price:1, live:null},
+  // Nakit — Midas (3 Ağu 2026; nakit + takas bekleyen)
+  {tk:'USD', cls:'Nakit', ccy:'USD', qty:26104.38, avg:1, price:1, live:null},
+  {tk:'TRY', cls:'Nakit', ccy:'TRY', qty:42652.55, avg:1, price:1, live:null},
 ];
 
 const RATES=[
@@ -418,7 +424,7 @@ const RATES=[
 ];
 const rateById = id => RATES.find(r=>r.id===id);
 /* ================= state ================= */
-const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: '1M', daily: [], intraday: [], prevClose: 0 };
+const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: 'Today', daily: [], intraday: [], prevClose: 0 };
 const $ = id => document.getElementById(id);
 const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 /* ================= helpers ================= */
@@ -439,21 +445,24 @@ const valUSD  = p => p.ccy==='USD' ? p.qty*p.price : p.qty*p.price/S.fx;
 const costUSD = p => p.ccy==='USD' ? p.qty*p.avg   : p.qty*p.avg/S.fx;
 const totalUSD = () => POSITIONS.reduce((s,p)=>s+valUSD(p),0);
 const totalCost = () => POSITIONS.reduce((s,p)=>s+costUSD(p),0);
-/* ================= history (örnek seri) ================= */
-/* ================= GERÇEK geçmiş (bugünkü pozisyonlar × tarihsel fiyatlar, USD) =================
-   Kaynak: Yahoo chart API (30 Tem 2026'da çekildi). Günlük seri 30 Tem 2025'ten, haftalık seri
-   12 Oca 2025'ten (portföydeki en yeni hissenin halka arzı) itibaren. */
-const HIST_D0=20299, HIST_D=[84432,83701,82072,81549,82223,84010,83336,84032,85569,86164,87258,87552,87096,89088,90182,88641,87943,87894,88083,87193,85311,86698,85994,89845,89409,89192,86940,88456,87907,88406,87096,87208,87205,87161,87104,88083,87616,87631,87432,87688,87630,87587,88133,88858,90184,89957,89646,90144,90436,90628,90758,90456,90511,90318,89540,88997,88860,87004,88050,87970,88826,89418,89170,91036,91669,92048,91955,92198,93269,91785,92874,91791,87563,86847,89234,90559,89570,89194,88477,87667,88015,88610,89766,88326,87707,88493,89627,89788,91053,91091,90591,90027,89161,89616,89801,90037,88350,85500,86557,85278,85929,85635,86751,87710,86456,86719,84898,83183,83607,83106,82448,82643,82310,80173,79920,79872,80299,81851,81855,82942,83021,83444,83256,83199,81458,83129,84482,84195,83577,83632,83870,84091,85343,85360,85570,83728,83875,83356,82790,82906,81945,82105,83637,83666,83808,84002,83904,83870,83744,84293,84456,84462,83346,84195,83419,83723,84510,84601,84770,86165,87157,86031,85600,86256,86237,86454,87170,88945,89328,89263,88922,88926,88616,88097,86223,86882,87557,87974,87903,86992,89022,89373,90271,89042,84651,82810,81818,82239,82006,81017,77222,80099,80055,80173,81204,80346,80140,78862,80053,80335,79680,80014,79550,79752,79175,80302,80322,80208,79890,80075,81893,81145,80710,81004,80728,81256,80032,81726,80889,79619,79468,79156,79704,81271,80844,80404,79836,79888,80444,81489,81318,79519,77917,77364,76824,76609,77223,76663,77480,75186,74124,74128,74039,74091,76132,77304,76396,76259,76358,76760,76979,77659,79106,79416,79979,80167,79445,80840,81686,82283,82150,83962,83474,82853,82990,82568,83549,82988,83342,83376,83725,83114,82503,82144,82721,83524,83679,83676,83586,84301,85524,85412,86301,86449,86790,87037,86287,86525,86953,85063,84751,84445,84007,83443,84155,83519,83675,84053,84010,84375,84344,83715,83972,84200,84282,84191,84181,83433,82320,82186,78934,78873,79689,79956,78898,77636,78918,79780,79959,80314,82207,81762,80938,80813,81024,81238,80948,81135,79308,78194,77815,77567,77535,77468,78166,78339,78767,79174,79701,79870,79924,80517,79780,79029,79831,80417,80342,80405,79044,80486,80468,79724,79090,79295,79316,79607,80843,80964,79677,79262,79347,79824,79167,78826,77914,79161];
-const HIST_W0=20100, HIST_WD=[1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,6,1,3], HIST_W=[75737,77179,77351,78143,77765,75277,75406,74242,74103,74790,74373,74605,74510,71998,72230,67577,67906,67213,65910,66640,66997,65239,65226,60804,60818,63654,63432,63345,63246,66570,66386,67184,67454,71971,71987,73515,73387,73691,73258,73088,73462,74138,74031,74257,74181,72016,72091,75133,75628,76638,76596,79692,79929,83413,83901,85013,85333,82236,82356,87540,87383,88109,88247,89135,89384,87217,87181,87703,87070,89634,90450,90321,90513,89028,88488,92208,92488,89260,89010,88624,89138,91077,91498,90036,89729,86751,86324,83137,83471,80315,79899,83197,83237,83864,83735,83369,83503,83818,83551,84471,84734,84759,85190,86501,87092,88615,88465,86994,87317,81827,81848,80173,80666,79704,79735,80211,80258,80738,80399,79151,79312,80445,80053,76616,75683,74043,74208,76776,77173,79454,79896,82861,82741,83724,83694,83687,84305,86792,86638,84437,83962,84018,84190,84203,84582,79697,79617,80323,80797,80796,80435,77485,77779,80160,79994,80406,80374,79316,79517,79826,79210,77914,79159];
+/* ================= geçmiş: history.json (3 Ağu 2026'dan itibaren gerçek günlük kapanışlar) =================
+   Her hafta içi günü ABD kapanışından sonra GitHub Actions (hist.yml) günün portföy değerini
+   history.json'a ekler. Grafik bu seriyi okur; gün içi Today görünümü canlı fiyatlardan üretilir. */
+let HIST_PTS=[];
+async function loadHistory(){
+  try{
+    const r=await fetch('history.json?t='+Date.now(),{cache:'no-store'});
+    if(r.ok){
+      const j=await r.json();
+      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), v:p.v}));
+    }
+  }catch(e){}
+  buildHistory();
+  renderChart();
+}
 function buildHistory(){
-  const DAY=86400000;
-  const wDays=[HIST_W0];
-  HIST_WD.forEach(dl=>wDays.push(wDays[wDays.length-1]+dl));
-  const pts=[];
-  for(let i=0;i<HIST_W.length;i++){ if(wDays[i]<HIST_D0) pts.push({t:wDays[i]*DAY, v:HIST_W[i]}); }
-  for(let i=0;i<HIST_D.length;i++){ pts.push({t:(HIST_D0+i)*DAY, v:HIST_D[i]}); }
-  S.daily=pts;
-  S.prevClose=pts[pts.length-1].v; // TV canlı katmanı gerçek önceki kapanışla günceller
+  S.daily=HIST_PTS.slice();
+  S.prevClose = S.daily.length ? S.daily[S.daily.length-1].v : totalUSD(); // TV canlı katmanı gerçek önceki kapanışla günceller
   buildIntraday();
 }
 function buildIntraday(){
@@ -487,6 +496,7 @@ function seriesFor(range){
     const t0=Date.now()-days*86400000;
     arr=S.daily.filter(p=>p.t>=t0);
   }
+  if(!arr.length) return S.intraday;
   return arr.concat([cur]);
 }
 /* ================= P&L chart ================= */
@@ -650,7 +660,7 @@ function renderTable(){
   let hL=0, hR=0;
   const put=(card,rows)=>{ const est=110+rows*44; if(hL<=hR){ colL.appendChild(card); hL+=est; } else { colR.appendChild(card); hR+=est; } };
   const N='http://www.w3.org/2000/svg';
-  ['ABD','BIST','Kripto','Metal','Nakit'].forEach(cls=>{
+  ['ABD','BIST','Kripto','Nakit'].forEach(cls=>{
     const items=POSITIONS.filter(p=>p.cls===cls);
     const card=document.createElement('section'); card.className='card-glass pos-card';
     const hd=document.createElement('div'); hd.className='pos-head';
@@ -910,7 +920,7 @@ function renderDonut(){
   const N='http://www.w3.org/2000/svg';
   const tv=totalUSD();
   const by={}; POSITIONS.forEach(p=>{ by[p.cls]=(by[p.cls]||0)+valUSD(p); });
-  const order=['ABD','BIST','Kripto','Metal','Nakit'].filter(k=>by[k]);
+  const order=['ABD','BIST','Kripto','Nakit'].filter(k=>by[k]);
   const R=55, C=2*Math.PI*R, cx=75, cy=75, gap=2.5;
   let off=0;
   order.forEach(k=>{
@@ -1180,6 +1190,7 @@ $('fhSave').onclick=()=>{
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
+loadHistory();
 refresh();
 fetchLive();
 setInterval(fetchLive, 60000);
