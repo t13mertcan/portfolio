@@ -595,19 +595,14 @@ function renderChart(){
   chartData=data;
   chartFirst={};
   CHART_KEYS.forEach(s=>{ const f0=data.find(p=>p[s.k]!=null&&isFinite(p[s.k])); chartFirst[s.k]=f0?f0[s.k]:null; });
-  // tüm çizgiler aralık başlangıcına göre % değişim olarak çizilir (karşılaştırılabilir eksen)
-  const pv=(k,val)=>(val/chartFirst[k]-1)*100;
+  // y ekseni: mutlak bakiye (USD); tooltip %PnL'i ayrıca gösterir
   let lo=Infinity, hi=-Infinity;
-  data.forEach(p=>CHART_KEYS.forEach(s=>{
-    const val=p[s.k], b0=chartFirst[s.k];
-    if(val!=null&&isFinite(val)&&b0){ const q=pv(s.k,val); if(q<lo)lo=q; if(q>hi)hi=q; }
-  }));
-  if(!isFinite(lo)){ lo=-1; hi=1; }
-  if(hi-lo<0.05){ const m0=(hi+lo)/2; lo=m0-0.03; hi=m0+0.03; }
-  const pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
+  data.forEach(p=>CHART_KEYS.forEach(s=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<lo)lo=val; if(val>hi)hi=val; } }));
+  if(!isFinite(lo)){ lo=0; hi=1; }
+  const pad=(hi-lo)*0.08||hi*0.01; lo-=pad; hi+=pad;
   const x=t=>M.l+(t-data[0].t)/(data[data.length-1].t-data[0].t||1)*(W-M.l-M.r);
   const y=v=>M.t+(1-(v-lo)/(hi-lo))*(H-M.t-M.b);
-  chartPts=data.map(p=>({px:x(p.t),py:y(pv('v',p.v)),t:p.t,v:p.v}));
+  chartPts=data.map(p=>({px:x(p.t),py:y(p.v),t:p.t,v:p.v}));
   chartGeom={W,H,M};
   const N='http://www.w3.org/2000/svg';
   const el=(n,at)=>{const e=document.createElementNS(N,n);for(const k in at)e.setAttribute(k,at[k]);return e};
@@ -626,7 +621,7 @@ function renderChart(){
     svg.appendChild(el('line',{x1:M.l,x2:W-M.r,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1}));
     const tx=el('text',{x:W-M.r+8,y:y(v)+4,fill:'var(--ink-3)','font-size':11,'font-family':'inherit'});
     tx.style.fontVariantNumeric='tabular-nums';
-    tx.textContent=(v>=0?'+':'')+v.toFixed(Math.abs(hi-lo)<2?2:1)+'%'; svg.appendChild(tx);
+    tx.textContent=S.priv?'':compactUSD(v); svg.appendChild(tx);
   });
   // x labels
   const nx=Math.min(6,data.length);
@@ -642,7 +637,7 @@ function renderChart(){
   CHART_KEYS.slice(1).forEach(s=>{
     if(!chartFirst[s.k]) return;
     const pts2=[];
-    data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(pv(s.k,val))]); });
+    data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(val)]); });
     if(pts2.length<2) return;
     const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
     svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.6,'stroke-linejoin':'round','stroke-linecap':'round',opacity:0.95}));
@@ -665,7 +660,7 @@ function renderChart(){
   const lastP=chartPts[chartPts.length-1];
   svg.appendChild(el('circle',{cx:lastP.px,cy:lastP.py,r:4.5,fill:'var(--accent)',stroke:'var(--surface-1)','stroke-width':2}));
   const endT=el('text',{x:lastP.px-8,y:Math.max(M.t+10,lastP.py-10),'text-anchor':'end',fill:'var(--ink-1)','font-size':12,'font-weight':650});
-  endT.textContent=fmtPct(pct); endT.setAttribute('fill',delta>=0?'var(--up)':'var(--down)'); svg.appendChild(endT);
+  endT.textContent=mv(compactUSD(last)); svg.appendChild(endT);
   // hover overlay
   const ov=el('rect',{x:M.l,y:M.t,width:W-M.l-M.r,height:H-M.t-M.b,fill:'transparent'});
   ov.style.cursor='crosshair';
