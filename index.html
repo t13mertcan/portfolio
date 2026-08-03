@@ -1174,6 +1174,32 @@ async function fetchLive(){
   buildIntraday();
   refresh();
 }
+/* ================= positions.json (tek doğruluk kaynağı — Telegram botu bunu günceller) ================= */
+const CG_IDS={BTC:'bitcoin', ETH:'ethereum'};
+async function loadPositions(){
+  try{
+    const r=await fetch('positions.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(!Array.isArray(j.positions)) return; // eski şema — dokunma
+    const prev={}; POSITIONS.forEach(p=>{ prev[p.cls+'|'+p.tk]=p; });
+    const next=[];
+    j.positions.forEach(o=>{
+      const old=prev[o.cls+'|'+o.tk];
+      next.push({tk:o.tk, cls:o.cls, ccy:o.ccy, qty:o.qty, avg:o.avg,
+        price: old ? old.price : o.avg,
+        prev: old ? old.prev : undefined,
+        yh: old ? old.yh : false,
+        live: o.cls==='Kripto' ? 'cg' : null,
+        cg: o.cls==='Kripto' ? CG_IDS[o.tk] : undefined});
+    });
+    next.push({tk:'USD', cls:'Nakit', ccy:'USD', qty:j.cash_usd||0, avg:1, price:1, live:null});
+    next.push({tk:'TRY', cls:'Nakit', ccy:'TRY', qty:j.cash_try||0, avg:1, price:1, live:null});
+    const changed = JSON.stringify(next.map(p=>[p.tk,p.qty,p.avg])) !== JSON.stringify(POSITIONS.map(p=>[p.tk,p.qty,p.avg]));
+    POSITIONS.length=0; next.forEach(p=>POSITIONS.push(p));
+    if(changed){ refresh(); fetchLive(); }
+  }catch(e){}
+}
 /* ================= refresh & init ================= */
 function refresh(){ renderTiles(); renderTable(); renderRates(); renderDonut(); renderChart(); }
 $('refreshBtn').onclick=fetchLive;
@@ -1192,8 +1218,10 @@ initRanges();
 buildHistory();
 loadHistory();
 refresh();
+loadPositions();
 fetchLive();
 setInterval(fetchLive, 60000);
+setInterval(loadPositions, 5*60000);
 fetchNews();
 setInterval(fetchNews, 15*60000);
 fetchTweets();
