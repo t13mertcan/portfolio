@@ -595,20 +595,14 @@ function renderChart(){
   chartData=data;
   chartFirst={};
   CHART_KEYS.forEach(s=>{ const f0=data.find(p=>p[s.k]!=null&&isFinite(p[s.k])); chartFirst[s.k]=f0?f0[s.k]:null; });
-  // y ekseni: Total'in mutlak bakiyesi (USD). Her çizgi KENDİ aralığında normalize edilir ki
-  // gün içi hareket ölçek farkına ezilmesin; kesin değerler tooltip'te.
-  const dom={};
-  CHART_KEYS.forEach(s=>{
-    let l=Infinity, h=-Infinity;
-    data.forEach(p=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<l)l=val; if(val>h)h=val; } });
-    if(!isFinite(l)){ dom[s.k]=null; return; }
-    if(h-l < Math.max(1,l*0.0015)){ const m0=(h+l)/2; l=m0*0.999; h=m0*1.001; }
-    const pd=(h-l)*0.08; dom[s.k]=[l-pd,h+pd];
-  });
-  const lo=dom.v?dom.v[0]:0, hi=dom.v?dom.v[1]:1;
+  // y ekseni: ortak mutlak bakiye (USD) — tüm çizgiler aynı eksene göre konumlanır;
+  // aralık en düşük varlık grubunun değerinden başlar, en yükseğe kadar gider.
+  let lo=Infinity, hi=-Infinity;
+  data.forEach(p=>CHART_KEYS.forEach(s=>{ const val=p[s.k]; if(val!=null&&isFinite(val)){ if(val<lo)lo=val; if(val>hi)hi=val; } }));
+  if(!isFinite(lo)){ lo=0; hi=1; }
+  const pad=(hi-lo)*0.04||hi*0.01; lo-=pad; hi+=pad;
   const x=t=>M.l+(t-data[0].t)/(data[data.length-1].t-data[0].t||1)*(W-M.l-M.r);
   const y=v=>M.t+(1-(v-lo)/(hi-lo))*(H-M.t-M.b);
-  const yK=(k,v)=>M.t+(1-(v-dom[k][0])/(dom[k][1]-dom[k][0]))*(H-M.t-M.b);
   chartPts=data.map(p=>({px:x(p.t),py:y(p.v),t:p.t,v:p.v}));
   chartGeom={W,H,M};
   const N='http://www.w3.org/2000/svg';
@@ -640,11 +634,11 @@ function renderChart(){
   // area + line
   const lineD=chartPts.map((p,i)=>(i?'L':'M')+p.px.toFixed(1)+' '+p.py.toFixed(1)).join('');
   svg.appendChild(el('path',{d:lineD+'L'+chartPts[chartPts.length-1].px+' '+y(lo)+'L'+chartPts[0].px+' '+y(lo)+'Z',fill:'url(#agrad)'}));
-  // sınıf çizgileri (US / BIST / Crypto) — her biri kendi aralığında normalize
+  // sınıf çizgileri (US / BIST / Crypto) — ortak eksende gerçek değerleriyle
   CHART_KEYS.slice(1).forEach(s=>{
-    if(!chartFirst[s.k]||!dom[s.k]) return;
+    if(!chartFirst[s.k]) return;
     const pts2=[];
-    data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,yK(s.k,val)]); });
+    data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(val)]); });
     if(pts2.length<2) return;
     const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
     svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.6,'stroke-linejoin':'round','stroke-linecap':'round',opacity:0.95}));
