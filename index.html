@@ -19,6 +19,25 @@
     --up:#0ca30c; --down:#e66767;
     --chip:rgba(255,255,255,0.06);
   }
+  html[data-theme="light"]{
+    color-scheme: light;
+    --bg0:#f4f2ec;
+    --accent:#a4750c; --accent-deep:#8a6200;
+    --accent-grad:linear-gradient(135deg,#e3b74a 0%,#c98500 45%,#9a6a00 100%);
+    --surface-1:#ffffff;
+    --glass:rgba(255,255,255,0.66); --glass-2:rgba(255,255,255,0.85);
+    --border:rgba(11,11,11,0.10); --border-hi:rgba(164,117,12,0.45);
+    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+    --grid:rgba(11,11,11,0.07); --axis:rgba(11,11,11,0.22);
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+    --up:#006300; --down:#d03b3b;
+    --chip:rgba(11,11,11,0.04);
+  }
+  html[data-theme="light"] .bg-glow{background:
+      radial-gradient(1100px 560px at 82% -12%, rgba(201,133,0,0.10), transparent 62%),
+      radial-gradient(900px 520px at -8% 28%, rgba(42,120,214,0.06), transparent 60%)}
+  html[data-theme="light"] .card-glass{box-shadow:0 10px 28px rgba(11,11,11,0.08), inset 0 1px 0 rgba(255,255,255,0.8)}
+  html[data-theme="light"] .hero-val{filter:drop-shadow(0 2px 10px rgba(164,117,12,0.18))}
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -251,6 +270,7 @@
     </div>
     <div class="h-right">
       <span class="stamp" id="stamp">—</span>
+      <button class="icon-btn priv-btn" id="themeBtn" title="Switch theme"></button>
       <button class="icon-btn priv-btn" id="privBtn" title="Hide amounts"></button>
       <button class="icon-btn" id="refreshBtn" title="Refresh live prices">↻ Refresh</button>
     </div>
@@ -532,6 +552,7 @@ function renderChart(){
   svg.setAttribute('width',W); svg.setAttribute('height',H);
   const M={l:8,r:70,t:14,b:26};
   const data=seriesFor(S.range);
+  if(!data.length){ svg.textContent=''; return; }
   const first=data[0].v, last=data[data.length-1].v;
   const delta=last-first, pct=first? delta/first : 0;
   const rd=$('rangeDelta');
@@ -1212,6 +1233,24 @@ $('privBtn').onclick=()=>{
   refresh();
 };
 syncPrivBtn();
+/* ---- tema (dark / light) ---- */
+const SUN_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+const MOON_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+S.theme='dark';
+try{ if(localStorage.getItem('theme')==='light') S.theme='light'; }catch(e){}
+function applyTheme(){
+  document.documentElement.dataset.theme=S.theme;
+  const b=$('themeBtn');
+  b.innerHTML = S.theme==='dark' ? SUN_SVG : MOON_SVG;
+  b.title = S.theme==='dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  refresh();
+}
+$('themeBtn').onclick=()=>{
+  S.theme = S.theme==='dark' ? 'light' : 'dark';
+  try{ localStorage.setItem('theme', S.theme); }catch(e){}
+  applyTheme();
+};
+applyTheme();
 let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
 initRanges();
 buildHistory();
