@@ -1015,7 +1015,7 @@ function openAssetModal(p, backCls){
   const c0=isTL ? p.qty*p.avg : costUSD(p);
   const pl0=v0-c0;
   const fmt=isTL?fmtTRY:fmtUSD;
-  sub.textContent=fmtNum.format(p.qty)+' × '+fmtNum.format(p.price)+' '+p.ccy+' = '+mv(fmt.format(v0))+' · P/L '+mv(fmtSignC(pl0,isTL))+' ('+fmtPct(c0?pl0/c0:0)+')';
+  sub.textContent=mv(fmt.format(v0))+' · P/L '+mv(fmtSignC(pl0,isTL))+' ('+fmtPct(c0?pl0/c0:0)+')';
   hl.appendChild(sub);
   const x=document.createElement('button'); x.className='modal-close'; x.textContent='✕';
   x.onclick=()=>$('modalBg').classList.remove('open');
