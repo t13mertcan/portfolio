@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: mktstate-v1 2026-08-04 -->
+<!-- build: mktstate-v2-flows 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -538,6 +538,12 @@ async function loadHistory(){
   buildHistory();
   renderChart();
 }
+function flowAdj(){
+  // dünkü kapanıştan SONRAKİ nakit giriş/çıkışları: P&L'e sayılmaz, çıpaya eklenir
+  const f=S.flows, hp=histPrev();
+  if(!f||!hp||!(f.d>hp.d)) return 0;
+  return (f.usd||0)+(f.try||0)/S.fx;
+}
 function histPrev(){
   // bugünden ÖNCEKİ son kapanış noktası (dünün kapanışı) — Today's P&L ve gün içi başlangıç çıpası
   const t0=new Date(); t0.setHours(0,0,0,0);
@@ -557,7 +563,7 @@ function buildIntraday(){
   const steps = Math.max(6, Math.floor((now - start.getTime())/600000)); // 10 dk
   const hp=histPrev();
   const specs=[
-    ['v',   S.prevClose,                                        totalUSD(),        3007],
+    ['v',   S.prevClose+flowAdj(),                              totalUSD(),        3007],
     ['us',  (hp&&isFinite(hp.us))  ? hp.us  : clsPrevUSD('ABD'),    clsUSD('ABD'),     101],
     ['bist',(hp&&isFinite(hp.bist))? hp.bist: clsPrevUSD('BIST'),   clsUSD('BIST'),    202],
     ['cr',  (hp&&isFinite(hp.cr))  ? hp.cr  : clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
@@ -795,7 +801,8 @@ function renderTiles(){
   const tv=totalUSD(), tc=totalCost();
   $('tvVal').textContent=mv(fmtUSD.format(tv));
   $('tvSub').textContent=(S.priv?MASK:'≈ '+fmtTRY.format(tv*S.fx))+' · '+POSITIONS.length+' open positions';
-  const day=tv-S.prevClose, dayP=S.prevClose?day/S.prevClose:0;
+  const anchor=S.prevClose+flowAdj();
+  const day=tv-anchor, dayP=anchor?day/anchor:0;
   const dv=$('dayVal'); dv.textContent=mv(fmtSign(day)); dv.style.color=day>=0?'var(--up)':'var(--down)';
   const dp=$('dayPct'); dp.textContent=(day>=0?'▲ ':'▼ ')+fmtPct(dayP); dp.className='delta '+(day>=0?'up':'down');
   const tot=tv-tc, totP=tc?tot/tc:0;
@@ -1563,6 +1570,7 @@ async function loadPositions(){
     });
     next.push({tk:'USD', cls:'Nakit', ccy:'USD', qty:j.cash_usd||0, avg:1, price:1, live:null});
     next.push({tk:'TRY', cls:'Nakit', ccy:'TRY', qty:j.cash_try||0, avg:1, price:1, live:null});
+    S.flows=(j.flows&&j.flows.d)?j.flows:null; // günün nakit giriş/çıkışı — P&L'den ayrıştırılır
     const changed = JSON.stringify(next.map(p=>[p.tk,p.qty,p.avg])) !== JSON.stringify(POSITIONS.map(p=>[p.tk,p.qty,p.avg]));
     POSITIONS.length=0; next.forEach(p=>POSITIONS.push(p));
     if(changed){ refresh(); fetchLive(); }
