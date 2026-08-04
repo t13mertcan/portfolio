@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: bench-v1 2026-08-04 -->
+<!-- build: bench-v2-gold 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -17,7 +17,7 @@
     --ink-1:#f5f3ee; --ink-2:#b8b5ac; --ink-3:#83807a;
     --grid:rgba(255,255,255,0.06); --axis:rgba(255,255,255,0.18);
     --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-    --b1:#7fa8dd; --b2:#e0925c; --b3:#5fbf9a;
+    --b1:#7fa8dd; --b2:#e0925c; --b3:#d4b06a;
     --up:#0ca30c; --down:#e66767;
     --chip:rgba(255,255,255,0.06);
   }
@@ -32,7 +32,7 @@
     --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
     --grid:rgba(11,11,11,0.07); --axis:rgba(11,11,11,0.22);
     --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
-    --b1:#5b8cc4; --b2:#c97a45; --b3:#2f9678;
+    --b1:#5b8cc4; --b2:#c97a45; --b3:#a8843b;
     --up:#006300; --down:#d03b3b;
     --chip:rgba(11,11,11,0.04);
   }
@@ -494,10 +494,10 @@ const CHART_KEYS=[
   {k:'cr',  name:'Crypto',    color:'var(--s3)'},
   {k:'bs',  name:'S&P 500',   color:'var(--b1)', bench:true},
   {k:'bb',  name:'BIST 100 ($)', color:'var(--b2)', bench:true},
-  {k:'bc',  name:'BTC',       color:'var(--b3)', bench:true},
+  {k:'bg',  name:'Gold (oz)', color:'var(--b3)', bench:true},
 ];
 const curPoint = () => ({t:Date.now(), v:totalUSD(), us:clsUSD('ABD'), bist:clsUSD('BIST'), cr:clsUSD('Kripto'),
-  bs:(S.bench.bs?S.bench.bs.p1:null), bb:(S.bench.bb?S.bench.bb.p1:null), bc:(S.bench.bc?S.bench.bc.p1:null)});
+  bs:(S.bench.bs?S.bench.bs.p1:null), bb:(S.bench.bb?S.bench.bb.p1:null), bg:(S.bench.bg?S.bench.bg.p1:null)});
 const activeKeys = () => S.chartMode==='detail' ? CHART_KEYS.slice(1) : [CHART_KEYS[0]];
 /* ================= geçmiş: history.json (3 Ağu 2026'dan itibaren gerçek günlük kapanışlar) =================
    Her hafta içi günü ABD kapanışından sonra GitHub Actions (hist.yml) günün portföy değerini
@@ -508,7 +508,7 @@ async function loadHistory(){
     const r=await fetch('history.json?t='+Date.now(),{cache:'no-store'});
     if(r.ok){
       const j=await r.json();
-      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), d:p.d, v:p.v, us:p.us, bist:p.bist, cr:p.cr, bs:p.spx, bb:p.xu, bc:p.btc}));
+      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), d:p.d, v:p.v, us:p.us, bist:p.bist, cr:p.cr, bs:p.spx, bb:p.xu, bg:p.gold}));
     }
   }catch(e){}
   buildHistory();
@@ -539,7 +539,7 @@ function buildIntraday(){
     ['cr',  (hp&&isFinite(hp.cr))  ? hp.cr  : clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
   ];
   // benchmark çizgileri (S&P 500 / BIST100 USD / BTC): dünkü kapanış çıpası history.json'dan, yoksa TV değişiminden
-  [['bs',404],['bb',505],['bc',606]].forEach(([k,seed])=>{
+  [['bs',404],['bb',505],['bg',606]].forEach(([k,seed])=>{
     const b=S.bench[k]; if(!b||!(b.p1>0)) return;
     const p0=(hp&&isFinite(hp[k])&&hp[k]>0) ? hp[k] : b.p0;
     if(p0>0) specs.push([k,p0,b.p1,seed]);
@@ -1434,8 +1434,8 @@ async function fetchYahoo(){
   {
     let spx=null; for(const c of ['SP:SPX','TVC:SPX','FOREXCOM:SPXUSD']){ if(gl[c]){ spx=gl[c]; break; } }
     if(spx&&spx.price>0) S.bench.bs={p0:(typeof spx.abs==='number')?spx.price-spx.abs:spx.price, p1:spx.price};
-    const btc=gl['BINANCE:BTCUSDT'];
-    if(btc&&btc.price>0) S.bench.bc={p0:(typeof btc.abs==='number')?btc.price-btc.abs:btc.price, p1:btc.price};
+    const au=gl['TVC:GOLD'];
+    if(au&&au.price>0) S.bench.bg={p0:(typeof au.abs==='number')?au.price-au.abs:au.price, p1:au.price};
     if(xu&&xu.price>0&&S.fx>0){
       const fxPrev=(fx&&typeof fx.abs==='number')?fx.price-fx.abs:S.fx;
       const xuPrev=(typeof xu.abs==='number')?xu.price-xu.abs:xu.price;
