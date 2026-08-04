@@ -501,26 +501,35 @@ async function loadHistory(){
     const r=await fetch('history.json?t='+Date.now(),{cache:'no-store'});
     if(r.ok){
       const j=await r.json();
-      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), v:p.v, us:p.us, bist:p.bist, cr:p.cr}));
+      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), d:p.d, v:p.v, us:p.us, bist:p.bist, cr:p.cr}));
     }
   }catch(e){}
   buildHistory();
   renderChart();
 }
+function histPrev(){
+  // bugünden ÖNCEKİ son kapanış noktası (dünün kapanışı) — Today's P&L ve gün içi başlangıç çıpası
+  const t0=new Date(); t0.setHours(0,0,0,0);
+  let best=null;
+  HIST_PTS.forEach(p=>{ if(p.t<=t0.getTime()) best=p; });
+  return best;
+}
 function buildHistory(){
   S.daily=HIST_PTS.slice();
-  S.prevClose = S.daily.length ? S.daily[S.daily.length-1].v : totalUSD(); // TV canlı katmanı gerçek önceki kapanışla günceller
+  const hp=histPrev();
+  S.prevClose = hp ? hp.v : (S.daily.length ? S.daily[S.daily.length-1].v : totalUSD());
   buildIntraday();
 }
 function buildIntraday(){
   const now = Date.now();
   const start = new Date(); start.setHours(0,0,0,0);
   const steps = Math.max(6, Math.floor((now - start.getTime())/600000)); // 10 dk
+  const hp=histPrev();
   const specs=[
-    ['v',   S.prevClose,          totalUSD(),        3007],
-    ['us',  clsPrevUSD('ABD'),    clsUSD('ABD'),     101],
-    ['bist',clsPrevUSD('BIST'),   clsUSD('BIST'),    202],
-    ['cr',  clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
+    ['v',   S.prevClose,                                        totalUSD(),        3007],
+    ['us',  (hp&&isFinite(hp.us))  ? hp.us  : clsPrevUSD('ABD'),    clsUSD('ABD'),     101],
+    ['bist',(hp&&isFinite(hp.bist))? hp.bist: clsPrevUSD('BIST'),   clsUSD('BIST'),    202],
+    ['cr',  (hp&&isFinite(hp.cr))  ? hp.cr  : clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
   ];
   const paths={};
   specs.forEach(([k,p0,p1,seed])=>{
@@ -546,15 +555,16 @@ function seriesFor(range){
   const cur=curPoint();
   if(range==='Today') return S.intraday;
   let arr;
+  const NOW=Date.now();
   if(range==='YTD'){
     const y0=new Date(new Date().getFullYear(),0,1).getTime();
-    arr=S.daily.filter(p=>p.t>=y0);
+    arr=S.daily.filter(p=>p.t>=y0&&p.t<NOW);
   } else if(range==='MAX'){
-    arr=S.daily.slice();
+    arr=S.daily.filter(p=>p.t<NOW);
   } else {
     const days={'1W':7,'1M':30,'2M':61,'3M':91,'6M':182,'1Y':365}[range];
-    const t0=Date.now()-days*86400000;
-    arr=S.daily.filter(p=>p.t>=t0);
+    const t0=NOW-days*86400000;
+    arr=S.daily.filter(p=>p.t>=t0&&p.t<NOW);
   }
   if(!arr.length) return S.intraday;
   return arr.concat([cur]);
@@ -1297,7 +1307,10 @@ async function fetchYahoo(){
   const g=gl['TVC:GOLD'];
   if(g){ S.gcOk=true; const rg=rateById('gram'); rg.price=Math.round(g.price/GRAM*S.fx); rg.chg=+g.chg.toFixed(2); rg.liveNow=true; }
   S.yhOk=any;
-  if(anyPrev) S.prevClose = totalUSD() - dayReal;
+  // Today's P&L çıpası: varsa DÜNÜN GERÇEK KAPANIŞI (history.json); yoksa TV değişimlerinden türet
+  const hp0=histPrev();
+  if(hp0) S.prevClose = hp0.v;
+  else if(anyPrev) S.prevClose = totalUSD() - dayReal;
 }
 /* ================= live data ================= */
 async function fetchLive(){
