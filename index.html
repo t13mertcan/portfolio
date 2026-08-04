@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: bench-v2-gold 2026-08-04 -->
+<!-- build: mktstate-v1 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -142,6 +142,8 @@
   .live-chip{font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);border:1px solid var(--border);
     border-radius:6px;padding:2px 6px;vertical-align:1px}
   .live-chip.live{color:var(--up);border-color:rgba(12,163,12,0.5)}
+  .live-chip.pre{color:#e8973a;border-color:rgba(232,151,58,0.55)}
+  .live-chip.closed{color:var(--down);border-color:rgba(224,82,82,0.5)}
   td.editable{cursor:text;text-decoration:underline dotted var(--axis);text-underline-offset:3px}
   td.editable input{width:84px;font:inherit;text-align:right;background:var(--chip);color:var(--ink-1);
     border:1px solid var(--accent);border-radius:6px;padding:2px 6px;outline:none}
@@ -477,6 +479,28 @@ function compactUSD(x){
   if(a>=1e6) return '$'+(x/1e6).toFixed(1)+'M';
   if(a>=1e3) return '$'+(x/1e3).toFixed(1)+'K';
   return '$'+Math.round(x);
+}
+/* ---- piyasa durumu: live / pre / closed (ABD pre-market 04:00–09:30 NY) ---- */
+function tzMin(tz){
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',weekday:'short',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date());
+  const g=t=>{const x=parts.find(o=>o.type===t);return x?x.value:'';};
+  return {dow:g('weekday'), m:(parseInt(g('hour'),10)%24)*60+parseInt(g('minute'),10)};
+}
+function mktState(p){
+  if(p.cls==='Kripto') return 'live';
+  if(p.cls==='BIST'){
+    const t=tzMin('Europe/Istanbul');
+    if(t.dow==='Sat'||t.dow==='Sun') return 'closed';
+    return (t.m>=600&&t.m<1080)?'live':'closed';
+  }
+  if(p.cls==='ABD'||p.cls==='RET'){
+    const t=tzMin('America/New_York');
+    if(t.dow==='Sat'||t.dow==='Sun') return 'closed';
+    if(t.m>=240&&t.m<570) return 'pre';
+    if(t.m>=570&&t.m<960) return 'live';
+    return 'closed';
+  }
+  return null;
 }
 const valUSD  = p => p.ccy==='USD' ? p.qty*p.price : p.qty*p.price/S.fx;
 const costUSD = p => p.ccy==='USD' ? p.qty*p.avg   : p.qty*p.avg/S.fx;
@@ -876,7 +900,9 @@ function renderTable(){
       const nm2=document.createElement('span'); nm2.className='nm'; nm2.textContent=p.tk;
       const lc=document.createElement('span');
       const isLive=(p.live==='cg'||p.live==='gold') ? S.liveOk : (p.live==='fh') ? !!S.fhKey : !!p.yh;
-      lc.className='live-chip'+(isLive?' live':''); lc.textContent=isLive?'LIVE':'MANUAL';
+      const st=isLive?mktState(p):null;
+      if(st){ lc.className='live-chip '+(st==='pre'?'pre':st); lc.textContent=st==='live'?'LIVE':(st==='pre'?'PRE-MKT':'CLOSED'); }
+      else { lc.className='live-chip'+(isLive?' live':''); lc.textContent=isLive?'LIVE':'MANUAL'; }
       tk.append(nm2,lc); td0.appendChild(tk); tr.appendChild(td0);
       const td1=document.createElement('td'); td1.textContent=(S.priv&&p.cls==='Nakit')?MASK:fmtNum.format(p.qty); tr.appendChild(td1);
       const tdC=document.createElement('td'); tdC.textContent=fmtNum.format(p.avg)+' '+p.ccy; tr.appendChild(tdC);
@@ -1363,12 +1389,12 @@ async function tvScan(market, tickers){
   try{
     const r=await fetch('https://scanner.tradingview.com/'+market+'/scan',{
       method:'POST', signal:ctl.signal,
-      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs']})
+      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs','premarket_close','premarket_change_abs']})
     });
     if(!r.ok) return {};
     const j=await r.json();
     const out={};
-    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2]}; });
+    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2], pm:row.d[3], pmAbs:row.d[4]}; });
     return out;
   }catch(e){ return {}; }
   finally{ clearTimeout(t); }
@@ -1397,8 +1423,15 @@ async function fetchYahoo(){
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
       if(o){
-        p.price=o.price; p.yh=true; any=true; p.ex=pre;
-        if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty; }
+        p.yh=true; any=true; p.ex=pre;
+        if(mktState(p)==='pre' && o.pm!=null && o.pm>0){
+          // pre-market: fiyat = premarket, günlük değişim = premarket vs dünkü resmi kapanış
+          p.price=o.pm; p.prev=o.price; anyPrev=true;
+          dayReal += (typeof o.pmAbs==='number' ? o.pmAbs : (o.pm-o.price))*p.qty;
+        } else {
+          p.price=o.price;
+          if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty; }
+        }
         break;
       }
     }
