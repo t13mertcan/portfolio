@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: mktstate-v4-openbridge 2026-08-04 -->
+<!-- build: mktstate-v5-totflow 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -808,7 +808,9 @@ function renderTiles(){
   const day=tv-anchor, dayP=anchor?day/anchor:0;
   const dv=$('dayVal'); dv.textContent=mv(fmtSign(day)); dv.style.color=day>=0?'var(--up)':'var(--down)';
   const dp=$('dayPct'); dp.textContent=(day>=0?'▲ ':'▼ ')+fmtPct(dayP); dp.className='delta '+(day>=0?'up':'down');
-  const tot=tv-tc, totP=tc?tot/tc:0;
+  // Kümülatif nakit akışı Total P&L'e dahil: çekilen para dönene kadar eksi görünür (kullanıcı tercihi)
+  const ftAdj=S.flowsTotal?((S.flowsTotal.usd||0)+(S.flowsTotal.try||0)/S.fx):0;
+  const tot=tv-tc+ftAdj, totP=tc?tot/tc:0;
   const tvv=$('totVal'); tvv.textContent=mv(fmtSign(tot)); tvv.style.color=tot>=0?'var(--up)':'var(--down)';
   const tp=$('totPct'); tp.textContent=(tot>=0?'▲ ':'▼ ')+fmtPct(totP); tp.className='delta '+(tot>=0?'up':'down');
   // gün içi sparkline
@@ -1579,7 +1581,8 @@ async function loadPositions(){
     });
     next.push({tk:'USD', cls:'Nakit', ccy:'USD', qty:j.cash_usd||0, avg:1, price:1, live:null});
     next.push({tk:'TRY', cls:'Nakit', ccy:'TRY', qty:j.cash_try||0, avg:1, price:1, live:null});
-    S.flows=(j.flows&&j.flows.d)?j.flows:null; // günün nakit giriş/çıkışı — P&L'den ayrıştırılır
+    S.flows=(j.flows&&j.flows.d)?j.flows:null; // günün nakit giriş/çıkışı (kayıt)
+    S.flowsTotal=(j.flows_total&&typeof j.flows_total==='object')?j.flows_total:null; // kümülatif net akış — Total P&L'e eklenir
     const changed = JSON.stringify(next.map(p=>[p.tk,p.qty,p.avg])) !== JSON.stringify(POSITIONS.map(p=>[p.tk,p.qty,p.avg]));
     POSITIONS.length=0; next.forEach(p=>POSITIONS.push(p));
     if(changed){ refresh(); fetchLive(); }
