@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: mktstate-v3-flowoff 2026-08-04 -->
+<!-- build: mktstate-v4-openbridge 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1429,13 +1429,19 @@ async function fetchYahoo(){
   });
   // ABD hisseleri/ETF'leri: NASDAQ/NYSE/AMEX öneklerinden dönen ilk sonuç
   const US_PRE=['NASDAQ:','NYSE:','AMEX:'];
+  // TV scanner ABD verisi 15 dk gecikmeli (delayed_streaming_900): seans açılışının ilk ~20
+  // dakikasında gün çubuğu hâlâ DÜNÜ gösterir. O pencerede pre-market fiyatı köprü olarak kullan.
+  const usT=tzMin('America/New_York');
+  const usEarly = usT.m>=570 && usT.m<590; // 09:30–09:50 ET
   POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').forEach(p=>{
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
       if(o){
         p.yh=true; any=true; p.ex=pre;
-        if(mktState(p)==='pre' && o.pm!=null && o.pm>0){
-          // pre-market: fiyat = premarket, günlük değişim = premarket vs dünkü resmi kapanış
+        const st=mktState(p);
+        if((st==='pre' || (st==='live'&&usEarly)) && o.pm!=null && o.pm>0){
+          // pre-market (veya açılışın gecikmeli ilk dakikaları): fiyat = premarket,
+          // günlük değişim = premarket vs dünkü resmi kapanış
           p.price=o.pm; p.prev=o.price; anyPrev=true;
           dayReal += (typeof o.pmAbs==='number' ? o.pmAbs : (o.pm-o.price))*p.qty;
         } else {
