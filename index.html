@@ -998,12 +998,12 @@ let BIST_CH=null, BIST_CH_AT=0;
 async function loadBistCharts(){
   if(BIST_CH && Date.now()-BIST_CH_AT<10*60000) return BIST_CH;
   try{
-    const r=await fetch('bist_charts.json?t='+Date.now(),{cache:'no-store'});
+    const r=await fetch('charts.json?t='+Date.now(),{cache:'no-store'});
     if(r.ok){ BIST_CH=await r.json(); BIST_CH_AT=Date.now(); }
   }catch(e){}
   return BIST_CH;
 }
-function drawAssetChart(host, tip, pts, rangeKey, chgEl){
+function drawAssetChart(host, tip, pts, rangeKey, chgEl, ccy){
   host.querySelectorAll('svg').forEach(e=>e.remove());
   const W=host.clientWidth||600, H=host.clientHeight||240, M={l:8,r:58,t:12,b:22};
   const N='http://www.w3.org/2000/svg';
@@ -1066,7 +1066,7 @@ function drawAssetChart(host, tip, pts, rangeKey, chgEl){
     xh.setAttribute('x1',cpts[bi][0]); xh.setAttribute('x2',cpts[bi][0]); xh.setAttribute('opacity',1);
     xd.setAttribute('cx',cpts[bi][0]); xd.setAttribute('cy',cpts[bi][1]); xd.setAttribute('opacity',1);
     tip.textContent='';
-    const v=document.createElement('div'); v.className='tv'; v.textContent=fmtNum.format(pts[bi][1])+' TRY';
+    const v=document.createElement('div'); v.className='tv'; v.textContent=fmtNum.format(pts[bi][1])+' '+(ccy||'');
     const dt=new Date(pts[bi][0]*1000);
     const l=document.createElement('div'); l.className='tl';
     l.textContent=intraday
@@ -1082,20 +1082,6 @@ function drawAssetChart(host, tip, pts, rangeKey, chgEl){
   host.appendChild(svg);
 }
 /* ================= varlık detay paneli (TV chart + haberler) ================= */
-function tvSymbolFor(p){
-  if(p.cls==='BIST') return 'BIST:'+p.tk;
-  if(p.cls==='Kripto') return 'BINANCE:'+p.tk+'USDT';
-  return (p.ex||'')+p.tk;
-}
-function tvWidget(container, script, cfg){
-  const wrap=document.createElement('div'); wrap.className='tradingview-widget-container';
-  const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget';
-  const sc=document.createElement('script');
-  sc.src='https://s3.tradingview.com/external-embedding/'+script;
-  sc.async=true;
-  sc.text=JSON.stringify(cfg);
-  wrap.appendChild(inner); wrap.appendChild(sc); container.appendChild(wrap);
-}
 function openAssetModal(p, backCls){
   const box=$('modalBox'); box.textContent='';
   const isTL=p.cls==='BIST';
@@ -1118,8 +1104,9 @@ function openAssetModal(p, backCls){
   const x=document.createElement('button'); x.className='modal-close'; x.textContent='✕';
   x.onclick=()=>$('modalBg').classList.remove('open');
   head.append(hl,x); box.appendChild(head);
-  if(p.cls==='BIST'){
-    /* BIST: TV embed lisans vermiyor — kendi grafiğimiz (Yahoo verisi, Actions köprüsü) + Google News */
+  {
+    /* Tüm sınıflar: kendi grafiğimiz (Yahoo verisi, Actions köprüsü) + Google News */
+    const ccy = p.cls==='BIST' ? 'TRY' : 'USD';
     const tabRow=document.createElement('div'); tabRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px';
     const tabs=document.createElement('div'); tabs.className='chart-toggle'; tabs.style.cssText='position:static;display:inline-flex';
     const chg=document.createElement('span'); chg.style.cssText='font-size:12.5px;font-weight:650';
@@ -1141,7 +1128,7 @@ function openAssetModal(p, backCls){
       const pts=data&&data[cur];
       chWrap.querySelectorAll('.bc-msg').forEach(e=>e.remove());
       if(!pts||pts.length<2){ msg('Grafik verisi henüz hazır değil — saatte bir güncellenir.'); chg.textContent=''; return; }
-      drawAssetChart(chWrap,tip,pts,cur,chg);
+      drawAssetChart(chWrap,tip,pts,cur,chg,ccy);
     }
     R2.forEach(([k,lbl])=>{
       const b=document.createElement('button'); b.textContent=lbl; b.dataset.k=k;
@@ -1156,7 +1143,9 @@ function openAssetModal(p, backCls){
       nl.textContent='';
       if(!news.length){
         const a=document.createElement('a'); a.className='x-item';
-        a.href='https://news.google.com/search?q='+encodeURIComponent(p.tk+' hisse')+'&hl=tr&gl=TR&ceid=TR:tr';
+        a.href = p.cls==='BIST'
+          ? 'https://news.google.com/search?q='+encodeURIComponent(p.tk+' hisse')+'&hl=tr&gl=TR&ceid=TR:tr'
+          : 'https://news.google.com/search?q='+encodeURIComponent(p.tk+' stock')+'&hl=en-US&gl=US&ceid=US:en';
         a.target='_blank'; a.rel='noopener noreferrer';
         const t2=document.createElement('div'); t2.className='x-txt'; t2.textContent='Haberler henüz yüklenmedi — '+p.tk+' haberlerini Google News\'te aç';
         a.appendChild(t2); nl.appendChild(a);
@@ -1168,29 +1157,6 @@ function openAssetModal(p, backCls){
         a.append(t2,m2); nl.appendChild(a);
       });
     });
-  } else {
-    const sym=tvSymbolFor(p);
-    // line chart — 1D/5D/1M/3M/YTD aralık sekmeleri widget içinde
-    const ch=document.createElement('div');
-    ch.style.cssText='height:330px;border-radius:12px;overflow:hidden;margin-bottom:14px';
-    tvWidget(ch,'embed-widget-symbol-overview.js',{
-      symbols:[[p.tk, sym+'|1D']],
-      chartOnly:false, width:'100%', height:330, locale:'en',
-      colorTheme:S.theme, isTransparent:false, autosize:false,
-      showVolume:false, hideDateRanges:false, hideMarketStatus:false, hideSymbolLogo:false,
-      scalePosition:'right', scaleMode:'Normal',
-      dateRanges:['1d|1','5d|15','1m|60','3m|1D','ytd|1D'],
-      chartType:'line', lineWidth:2, headerFontSize:'medium',
-      fontFamily:'-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif'
-    });
-    box.appendChild(ch);
-    // sembole özel haberler
-    const nh=document.createElement('div'); nh.className='sub-h'; nh.style.margin='0 0 8px'; nh.textContent='Latest news · '+p.tk;
-    box.appendChild(nh);
-    const nw=document.createElement('div');
-    nw.style.cssText='height:330px;border-radius:12px;overflow:hidden';
-    tvWidget(nw,'embed-widget-timeline.js',{feedMode:'symbol',symbol:sym,displayMode:'regular',colorTheme:S.theme,isTransparent:false,width:'100%',height:330,locale:'en'});
-    box.appendChild(nw);
   }
   $('modalBg').classList.add('open');
 }
