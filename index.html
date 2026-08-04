@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- build: bench-v1 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -16,6 +17,7 @@
     --ink-1:#f5f3ee; --ink-2:#b8b5ac; --ink-3:#83807a;
     --grid:rgba(255,255,255,0.06); --axis:rgba(255,255,255,0.18);
     --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --b1:#7fa8dd; --b2:#e0925c; --b3:#5fbf9a;
     --up:#0ca30c; --down:#e66767;
     --chip:rgba(255,255,255,0.06);
   }
@@ -30,6 +32,7 @@
     --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
     --grid:rgba(11,11,11,0.07); --axis:rgba(11,11,11,0.22);
     --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+    --b1:#5b8cc4; --b2:#c97a45; --b3:#2f9678;
     --up:#006300; --down:#d03b3b;
     --chip:rgba(11,11,11,0.04);
   }
@@ -455,7 +458,7 @@ const RATES=[
 ];
 const rateById = id => RATES.find(r=>r.id===id);
 /* ================= state ================= */
-const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: 'Today', daily: [], intraday: [], prevClose: 0, priv: false };
+const S = { fx: 47.41, plMode:{}, fhKey: null, lastUpdate: null, liveOk: false, range: 'Today', daily: [], intraday: [], prevClose: 0, priv: false, bench: {} };
 try{ S.priv = localStorage.getItem('privMode')==='1'; }catch(e){}
 const MASK='***';
 const mv = s => S.priv ? MASK : s; // varlık tutarlarını gizle (yüzdeler hep görünür)
@@ -489,8 +492,12 @@ const CHART_KEYS=[
   {k:'us',  name:'US Stocks', color:'var(--s1)'},
   {k:'bist',name:'BIST',      color:'var(--s2)'},
   {k:'cr',  name:'Crypto',    color:'var(--s3)'},
+  {k:'bs',  name:'S&P 500',   color:'var(--b1)', bench:true},
+  {k:'bb',  name:'BIST 100 ($)', color:'var(--b2)', bench:true},
+  {k:'bc',  name:'BTC',       color:'var(--b3)', bench:true},
 ];
-const curPoint = () => ({t:Date.now(), v:totalUSD(), us:clsUSD('ABD'), bist:clsUSD('BIST'), cr:clsUSD('Kripto')});
+const curPoint = () => ({t:Date.now(), v:totalUSD(), us:clsUSD('ABD'), bist:clsUSD('BIST'), cr:clsUSD('Kripto'),
+  bs:(S.bench.bs?S.bench.bs.p1:null), bb:(S.bench.bb?S.bench.bb.p1:null), bc:(S.bench.bc?S.bench.bc.p1:null)});
 const activeKeys = () => S.chartMode==='detail' ? CHART_KEYS.slice(1) : [CHART_KEYS[0]];
 /* ================= geçmiş: history.json (3 Ağu 2026'dan itibaren gerçek günlük kapanışlar) =================
    Her hafta içi günü ABD kapanışından sonra GitHub Actions (hist.yml) günün portföy değerini
@@ -501,7 +508,7 @@ async function loadHistory(){
     const r=await fetch('history.json?t='+Date.now(),{cache:'no-store'});
     if(r.ok){
       const j=await r.json();
-      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), d:p.d, v:p.v, us:p.us, bist:p.bist, cr:p.cr}));
+      HIST_PTS=(j.points||[]).map(p=>({t:Date.parse(p.d+'T21:00:00Z'), d:p.d, v:p.v, us:p.us, bist:p.bist, cr:p.cr, bs:p.spx, bb:p.xu, bc:p.btc}));
     }
   }catch(e){}
   buildHistory();
@@ -531,6 +538,12 @@ function buildIntraday(){
     ['bist',(hp&&isFinite(hp.bist))? hp.bist: clsPrevUSD('BIST'),   clsUSD('BIST'),    202],
     ['cr',  (hp&&isFinite(hp.cr))  ? hp.cr  : clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
   ];
+  // benchmark çizgileri (S&P 500 / BIST100 USD / BTC): dünkü kapanış çıpası history.json'dan, yoksa TV değişiminden
+  [['bs',404],['bb',505],['bc',606]].forEach(([k,seed])=>{
+    const b=S.bench[k]; if(!b||!(b.p1>0)) return;
+    const p0=(hp&&isFinite(hp[k])&&hp[k]>0) ? hp[k] : b.p0;
+    if(p0>0) specs.push([k,p0,b.p1,seed]);
+  });
   const paths={};
   specs.forEach(([k,p0,p1,seed])=>{
     if(!(p0>0)) p0=p1;
@@ -548,7 +561,9 @@ function buildIntraday(){
   S.intraday=[];
   for(let i=0;i<=steps;i++){
     const f=i/steps;
-    S.intraday.push({t:start.getTime()+(now-start.getTime())*f, v:paths.v[i], us:paths.us[i], bist:paths.bist[i], cr:paths.cr[i]});
+    const pt={t:start.getTime()+(now-start.getTime())*f};
+    specs.forEach(([k])=>{ pt[k]=paths[k][i]; });
+    S.intraday.push(pt);
   }
 }
 function seriesFor(range){
@@ -677,7 +692,9 @@ function renderChart(){
       data.forEach((p,i)=>{ const val=p[s.k]; if(val!=null&&isFinite(val)) pts2.push([chartPts[i].px,y(pv(s.k,val))]); });
       if(pts2.length<2) return;
       const d2=pts2.map((o,i)=>(i?'L':'M')+o[0].toFixed(1)+' '+o[1].toFixed(1)).join('');
-      svg.appendChild(el('path',{d:d2,fill:'none',stroke:s.color,'stroke-width':1.8,'stroke-linejoin':'round','stroke-linecap':'round'}));
+      const at={d:d2,fill:'none',stroke:s.color,'stroke-width':s.bench?1.4:1.8,'stroke-linejoin':'round','stroke-linecap':'round'};
+      if(s.bench){ at['stroke-dasharray']='6 5'; at['opacity']=0.85; }
+      svg.appendChild(el('path',at));
     });
   }
   // lejant (sadece detail modda)
@@ -685,8 +702,11 @@ function renderChart(){
   if(leg){
     leg.textContent='';
     if(detail) CHART_KEYS.slice(1).forEach(s=>{
+      if(s.bench&&!chartFirst[s.k]) return;
       const it=document.createElement('span'); it.className='ci';
-      const sw=document.createElement('i'); sw.style.background=s.color;
+      const sw=document.createElement('i');
+      if(s.bench){ sw.style.background='transparent'; sw.style.height='0'; sw.style.borderTop='2px dashed '+(s.color.startsWith('var')?getComputedStyle(document.documentElement).getPropertyValue(s.color.slice(4,-1)).trim():s.color); sw.style.borderRadius='0'; }
+      else sw.style.background=s.color;
       it.appendChild(sw); it.append(s.name); leg.appendChild(it);
     });
   }
@@ -725,7 +745,7 @@ function onHover(e){
     const row=document.createElement('div'); row.className='trow';
     const d2=document.createElement('span'); d2.className='dot2'; d2.style.background=s.color;
     const nm=document.createElement('span'); nm.textContent=s.name;
-    const b2=document.createElement('b'); b2.textContent=mv(fmtUSD2.format(val));
+    const b2=document.createElement('b'); b2.textContent=s.bench?'':mv(fmtUSD2.format(val));
     row.append(d2,nm,b2);
     if(pc!=null){
       const pcs=document.createElement('span'); pcs.textContent=fmtPct(pc);
@@ -1358,7 +1378,7 @@ async function fetchYahoo(){
   const [tr, gl] = await Promise.all([
     tvScan('turkey', bist.map(p=>'BIST:'+p.tk).concat(['BIST:XU100'])),
     tvScan('global', TV_GLOBAL.flatMap(x=>x[1])
-      .concat(['BINANCE:BTCUSDT','BINANCE:ETHUSDT'])
+      .concat(['BINANCE:BTCUSDT','BINANCE:ETHUSDT','SP:SPX','TVC:SPX','FOREXCOM:SPXUSD'])
       .concat(POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').flatMap(p=>['NASDAQ:'+p.tk,'NYSE:'+p.tk,'AMEX:'+p.tk])))
   ]);
   let any=false, dayReal=0, anyPrev=false;
@@ -1410,6 +1430,18 @@ async function fetchYahoo(){
   });
   const xu=tr['BIST:XU100'];
   if(xu){ const r=rateById('xu100'); r.price=Math.round(xu.price); r.chg=+xu.chg.toFixed(2); r.liveNow=true; }
+  // benchmark çıpaları (Detail grafiği): p0 = dünkü kapanış (TV change_abs'ten), p1 = şimdi
+  {
+    let spx=null; for(const c of ['SP:SPX','TVC:SPX','FOREXCOM:SPXUSD']){ if(gl[c]){ spx=gl[c]; break; } }
+    if(spx&&spx.price>0) S.bench.bs={p0:(typeof spx.abs==='number')?spx.price-spx.abs:spx.price, p1:spx.price};
+    const btc=gl['BINANCE:BTCUSDT'];
+    if(btc&&btc.price>0) S.bench.bc={p0:(typeof btc.abs==='number')?btc.price-btc.abs:btc.price, p1:btc.price};
+    if(xu&&xu.price>0&&S.fx>0){
+      const fxPrev=(fx&&typeof fx.abs==='number')?fx.price-fx.abs:S.fx;
+      const xuPrev=(typeof xu.abs==='number')?xu.price-xu.abs:xu.price;
+      S.bench.bb={p0:xuPrev/(fxPrev||S.fx), p1:xu.price/S.fx};
+    }
+  }
   const g=gl['TVC:GOLD'];
   if(g){ S.gcOk=true; const rg=rateById('gram'); rg.price=Math.round(g.price/GRAM*S.fx); rg.chg=+g.chg.toFixed(2); rg.liveNow=true; }
   S.yhOk=any;
