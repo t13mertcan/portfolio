@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: mktstate-v5-totflow 2026-08-04 -->
+<!-- build: trade-v1 2026-08-04 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -397,6 +397,7 @@
 const CLASSES = {
   ABD:   {name:'US Stocks', v:'--s1'},
   RET:   {name:'Retirement Savings', v:'--s4'},
+  TRD:   {name:'Trade',     v:'--s7'},
   BIST:  {name:'BIST',      v:'--s2'},
   Kripto:{name:'Crypto',    v:'--s3'},
   Metal: {name:'Metals',    v:'--s4'},
@@ -493,7 +494,7 @@ function mktState(p){
     if(t.dow==='Sat'||t.dow==='Sun') return 'closed';
     return (t.m>=600&&t.m<1080)?'live':'closed';
   }
-  if(p.cls==='ABD'||p.cls==='RET'){
+  if(p.cls==='ABD'||p.cls==='RET'||p.cls==='TRD'){
     const t=tzMin('America/New_York');
     if(t.dow==='Sat'||t.dow==='Sun') return 'closed';
     if(t.m>=240&&t.m<570) return 'pre';
@@ -845,7 +846,7 @@ function renderTable(){
   let hL=0, hR=0;
   const put=(card,rows)=>{ const est=110+rows*44; if(hL<=hR){ colL.appendChild(card); hL+=est; } else { colR.appendChild(card); hR+=est; } };
   const N='http://www.w3.org/2000/svg';
-  ['ABD','RET','BIST','Kripto','Nakit'].forEach(cls=>{
+  ['ABD','RET','TRD','BIST','Kripto','Nakit'].forEach(cls=>{
     const items=POSITIONS.filter(p=>p.cls===cls);
     const card=document.createElement('section'); card.className='card-glass pos-card';
     const hd=document.createElement('div'); hd.className='pos-head';
@@ -1278,7 +1279,7 @@ function renderDonut(){
   const N='http://www.w3.org/2000/svg';
   const tv=totalUSD();
   const by={}; POSITIONS.forEach(p=>{ by[p.cls]=(by[p.cls]||0)+valUSD(p); });
-  const order=['ABD','RET','BIST','Kripto','Nakit'].filter(k=>by[k]);
+  const order=['ABD','RET','TRD','BIST','Kripto','Nakit'].filter(k=>by[k]);
   const R=55, C=2*Math.PI*R, cx=75, cy=75, gap=2.5;
   let off=0;
   order.forEach(k=>{
@@ -1417,7 +1418,7 @@ async function fetchYahoo(){
     tvScan('turkey', bist.map(p=>'BIST:'+p.tk).concat(['BIST:XU100'])),
     tvScan('global', TV_GLOBAL.flatMap(x=>x[1])
       .concat(['BINANCE:BTCUSDT','BINANCE:ETHUSDT','SP:SPX','TVC:SPX','FOREXCOM:SPXUSD'])
-      .concat(POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').flatMap(p=>['NASDAQ:'+p.tk,'NYSE:'+p.tk,'AMEX:'+p.tk])))
+      .concat(POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET'||p.cls==='TRD').flatMap(p=>['NASDAQ:'+p.tk,'NYSE:'+p.tk,'AMEX:'+p.tk])))
   ]);
   let any=false, dayReal=0, anyPrev=false;
   // kur önce — gram hesapları buna bağlı
@@ -1435,7 +1436,7 @@ async function fetchYahoo(){
   // dakikasında gün çubuğu hâlâ DÜNÜ gösterir. O pencerede pre-market fiyatı köprü olarak kullan.
   const usT=tzMin('America/New_York');
   const usEarly = usT.m>=570 && usT.m<590; // 09:30–09:50 ET
-  POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET').forEach(p=>{
+  POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET'||p.cls==='TRD').forEach(p=>{
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
       if(o){
