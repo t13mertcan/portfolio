@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: heat-v1 2026-08-09 -->
+<!-- build: heat-v2 2026-08-09 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1440,8 +1440,13 @@ function openAssetModal(p, backCls){
       } else news.forEach(n=>{
         const a=document.createElement('a'); a.className='x-item';
         a.href=n.u; a.target='_blank'; a.rel='noopener noreferrer';
-        const t2=document.createElement('div'); t2.className='x-txt'; t2.textContent=n.t;
-        const m2=document.createElement('div'); m2.className='x-meta'; m2.textContent=timeAgo(n.d);
+        // Google News basligi "Baslik - Kaynak" formatinda: kaynagi ayikla, meta satirina yaz
+        let tt=(n.t||'').trim(), src='';
+        const ix=tt.lastIndexOf(' - ');
+        if(ix>10 && tt.length-ix<45){ src=tt.slice(ix+3).trim(); tt=tt.slice(0,ix).trim(); }
+        const t2=document.createElement('div'); t2.className='x-txt'; t2.textContent=tt;
+        const m2=document.createElement('div'); m2.className='x-meta';
+        m2.textContent=(src?src+' · ':'')+timeAgo(n.d);
         a.append(t2,m2); nl.appendChild(a);
       });
     });
