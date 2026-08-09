@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: heat-v2 2026-08-09 -->
+<!-- build: heat-v3 2026-08-09 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1427,7 +1427,8 @@ function openAssetModal(p, backCls){
     loadBistCharts().then(()=>{
       draw();
       const data=BIST_CH&&BIST_CH.tk&&BIST_CH.tk[p.tk];
-      const news=(data&&data.news)||[];
+      const news=((data&&data.news)||[]).slice()
+        .sort((a,b)=>(Date.parse(b.d)||0)-(Date.parse(a.d)||0)); // en yeni en ustte
       nl.textContent='';
       if(!news.length){
         const a=document.createElement('a'); a.className='x-item';
