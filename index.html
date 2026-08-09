@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: earn-v1 2026-08-09 -->
+<!-- build: intra-v1 2026-08-09 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -594,44 +594,86 @@ function buildHistory(){
   S.prevClose = hp ? hp.v : (S.daily.length ? S.daily[S.daily.length-1].v : totalUSD());
   buildIntraday();
 }
+/* Gün içi seri = GERÇEK 5 dk'lık barlar (intraday.json, data branch, bot görevi her ~5 dk yazar)
+   + canlı TV uç noktası. Veri yoksa dürüst düz çizgi (dünkü kapanış → şimdi) — sahte dalga YOK. */
+let INTRA=null;
+async function loadIntraday(){
+  try{
+    const r=await fetch('https://raw.githubusercontent.com/t13mertcan/portfolio/data/intraday.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) return;
+    INTRA=await r.json();
+    buildIntraday(); renderChart();
+  }catch(e){}
+}
 function buildIntraday(){
   const now = Date.now();
   const start = new Date(); start.setHours(0,0,0,0);
-  const steps = Math.max(6, Math.floor((now - start.getTime())/600000)); // 10 dk
+  const t0=start.getTime();
   const hp=histPrev();
-  const specs=[
-    ['v',   S.prevClose+flowAdj(),                              totalUSD(),        3007],
-    ['us',  (hp&&isFinite(hp.us))  ? hp.us  : clsPrevUSD('ABD'),    clsUSD('ABD'),     101],
-    ['bist',(hp&&isFinite(hp.bist))? hp.bist: clsPrevUSD('BIST'),   clsUSD('BIST'),    202],
-    ['cr',  (hp&&isFinite(hp.cr))  ? hp.cr  : clsPrevUSD('Kripto'), clsUSD('Kripto'),  303],
-  ];
-  // benchmark çizgileri (S&P 500 / BIST100 USD / BTC): dünkü kapanış çıpası history.json'dan, yoksa TV değişiminden
-  [['bs',404],['bb',505],['bg',606]].forEach(([k,seed])=>{
-    const b=S.bench[k]; if(!b||!(b.p1>0)) return;
-    const p0=(hp&&isFinite(hp[k])&&hp[k]>0) ? hp[k] : b.p0;
-    if(p0>0) specs.push([k,p0,b.p1,seed]);
-  });
-  const paths={};
-  specs.forEach(([k,p0,p1,seed])=>{
-    if(!(p0>0)) p0=p1;
-    const rnd=mulberry32(seed);
-    const logs=[0];
-    for(let i=1;i<=steps;i++) logs.push(logs[i-1] + (rnd()-0.5)*0.0016);
-    const a=Math.log(Math.max(p0,1e-9)), b=Math.log(Math.max(p1,1e-9)), shift=logs[steps];
-    paths[k]=[];
-    for(let i=0;i<=steps;i++){
-      const f=i/steps;
-      paths[k].push(Math.exp(a + (b-a)*f + (logs[i]-shift*f)));
-    }
-    paths[k][steps]=p1;
-  });
-  S.intraday=[];
-  for(let i=0;i<=steps;i++){
-    const f=i/steps;
-    const pt={t:start.getTime()+(now-start.getTime())*f};
-    specs.forEach(([k])=>{ pt[k]=paths[k][i]; });
-    S.intraday.push(pt);
+  const liveEnd={t:now, v:totalUSD(), us:clsUSD('ABD'), bist:clsUSD('BIST'), cr:clsUSD('Kripto'),
+    bs:(S.bench.bs&&S.bench.bs.p1>0)?S.bench.bs.p1:null,
+    bb:(S.bench.bb&&S.bench.bb.p1>0)?S.bench.bb.p1:null,
+    bg:(S.bench.bg&&S.bench.bg.p1>0)?S.bench.bg.p1:null};
+  const T=(INTRA&&INTRA.tk)?INTRA.tk:null;
+  if(!T){
+    const a={t:t0,
+      v:(hp?hp.v:liveEnd.v),
+      us:(hp&&isFinite(hp.us))?hp.us:clsPrevUSD('ABD'),
+      bist:(hp&&isFinite(hp.bist))?hp.bist:clsPrevUSD('BIST'),
+      cr:(hp&&isFinite(hp.cr))?hp.cr:clsPrevUSD('Kripto'),
+      bs:(hp&&isFinite(hp.bs))?hp.bs:(S.bench.bs?S.bench.bs.p0:null),
+      bb:(hp&&isFinite(hp.bb))?hp.bb:(S.bench.bb?S.bench.bb.p0:null),
+      bg:(hp&&isFinite(hp.bg))?hp.bg:(S.bench.bg?S.bench.bg.p0:null)};
+    S.intraday=[a,liveEnd];
+    return;
   }
+  // bar okuyucu: t anındaki fiyat = en son bar (≤t); bugünden önce bar yoksa pc (dünkü kapanış)
+  const keys=Object.keys(T);
+  const idx={}, val={};
+  keys.forEach(k=>{
+    const e=T[k], p=e.p||[];
+    let i=-1; while(i+1<p.length && p[i+1][0]*1000<=t0) i++;
+    idx[k]=i;
+    val[k]=(i>=0)?p[i][1]:((typeof e.pc==='number')?e.pc:(p.length?p[0][1]:null));
+  });
+  const adv=(k,t)=>{
+    const p=T[k].p||[];
+    let i=idx[k];
+    while(i+1<p.length && p[i+1][0]*1000<=t) i++;
+    if(i!==idx[k]){ idx[k]=i; val[k]=p[i][1]; }
+    return val[k];
+  };
+  const step=300000, pts=[];
+  for(let t=t0; t<=now; t+=step){
+    const f=T['_fx']?adv('_fx',t):null;
+    const fx=(f&&f>0)?f:S.fx;
+    let us=0,ret=0,trd=0,bist=0,cr=0,cash=0;
+    POSITIONS.forEach(p=>{
+      if(p.cls==='Nakit'){ cash += (p.ccy==='TRY') ? p.qty/fx : p.qty; return; }
+      let pr=T[p.tk]?adv(p.tk,t):null;
+      if(!(pr>0)) pr=(p.prev!=null)?p.prev:p.price;
+      const usd=(p.ccy==='TRY')?pr*p.qty/fx:pr*p.qty;
+      if(p.cls==='ABD') us+=usd; else if(p.cls==='RET') ret+=usd; else if(p.cls==='TRD') trd+=usd;
+      else if(p.cls==='BIST') bist+=usd; else if(p.cls==='Kripto') cr+=usd;
+    });
+    const pt={t, v:us+ret+trd+bist+cr+cash, us, bist, cr};
+    if(T['_spx']){ const x=adv('_spx',t); if(x>0) pt.bs=x; }
+    if(T['_xu']){ const x=adv('_xu',t); if(x>0) pt.bb=x/fx; }
+    if(T['_gold']){ const x=adv('_gold',t); if(x>0) pt.bg=x; }
+    pts.push(pt);
+  }
+  // benchmark dikişi: kaynak farkı (spot/vadeli, kur) uçta sıçrama yapmasın diye
+  // patikayı canlı uca oransal ölçekle (tekdüze çarpan % şekli değiştirmez)
+  ['bs','bb','bg'].forEach(k=>{
+    if(!(liveEnd[k]>0)) return;
+    let last=null;
+    for(let i=pts.length-1;i>=0;i--){ if(pts[i][k]>0){ last=pts[i][k]; break; } }
+    if(!(last>0)) return;
+    const fscale=liveEnd[k]/last;
+    if(fscale>0.9&&fscale<1.1) pts.forEach(p=>{ if(p[k]>0) p[k]*=fscale; });
+  });
+  pts.push(liveEnd);
+  S.intraday=pts;
 }
 function seriesFor(range){
   const cur=curPoint();
@@ -1692,6 +1734,8 @@ loadPositions();
 fetchLive();
 setInterval(fetchLive, 60000);
 setInterval(loadPositions, 5*60000);
+loadIntraday();
+setInterval(loadIntraday, 2*60000);
 fetchNews();
 setInterval(fetchNews, 15*60000);
 fetchTweets();
