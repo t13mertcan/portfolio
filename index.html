@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: intra-v1 2026-08-09 -->
+<!-- build: heat-v1 2026-08-09 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -258,6 +258,20 @@
   .x-meta{font-size:11px;color:var(--ink-3);margin-top:4px}
   .x-upd{font-size:11px;color:var(--ink-3)}
   /* ---------- pozisyon kartları ---------- */
+  .view-toggle{display:inline-flex;gap:2px;background:var(--chip);border:1px solid var(--border);border-radius:11px;padding:3px}
+  .view-toggle button{border:0;background:transparent;color:var(--ink-2);font-size:11.5px;font-weight:650;font-family:inherit;
+    padding:5px 12px;border-radius:8px;cursor:pointer}
+  .view-toggle button.on{background:var(--accent-grad);color:#1a1206}
+  #heatBox{position:relative;width:100%;height:520px}
+  @media (max-width:980px){ #heatBox{height:420px} }
+  .hm-cls{position:absolute;border:1px solid var(--border);border-radius:8px;pointer-events:none}
+  .hm-cls .hm-cl-lbl{position:absolute;top:2px;left:6px;font-size:9px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--ink-3);pointer-events:none;white-space:nowrap;overflow:hidden;max-width:95%}
+  .hm-box{position:absolute;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;overflow:hidden;transition:filter .15s}
+  .hm-box:hover{filter:brightness(1.18)}
+  .hm-tk{font-weight:700;color:var(--ink-1);line-height:1.1;font-variant-numeric:normal}
+  .hm-pct{font-weight:650;color:var(--ink-2);line-height:1.2}
   .pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
   .pos-col{display:flex;flex-direction:column;gap:14px;min-width:0}
   .x-list{max-height:480px;overflow-y:auto}
@@ -350,6 +364,19 @@
 
 
   <section class="card-glass" id="ernStrip" style="display:none"></section>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <div class="view-toggle" id="posViewT">
+      <button data-v="table">Tables</button>
+      <button data-v="heat">Heatmap</button>
+    </div>
+  </div>
+
+  <section class="card-glass" id="heatCard" style="display:none;margin-bottom:14px;position:relative">
+    <div class="card-head"><div><h2>Heatmap</h2><div class="sub-h">size = weight (USD) · color = today's change · click a tile for details</div></div></div>
+    <div id="heatBox"></div>
+    <div class="tip" id="heatTip"></div>
+  </section>
 
   <div class="pos-grid"><div class="pos-col" id="posColL"></div><div class="pos-col" id="posColR"></div></div>
 
@@ -1036,6 +1063,125 @@ function renderTable(){
   });
 }
 
+/* ================= ısı haritası (treemap) ================= */
+S.posView='table';
+try{ if(localStorage.getItem('posView')==='heat') S.posView='heat'; }catch(e){}
+function squarify(items,x,y,w,h,out){
+  let rest=items.slice(), rx=x, ry=y, rw=w, rh=h;
+  while(rest.length){
+    if(rw<=0||rh<=0){ rest.forEach(it=>out.push({it,x:rx,y:ry,w:Math.max(rw,0),h:Math.max(rh,0)})); break; }
+    const total=rest.reduce((a,b)=>a+b.v,0);
+    if(!(total>0)){ break; }
+    let row=[], rowSum=0, best=Infinity;
+    const side=Math.min(rw,rh);
+    for(let i=0;i<rest.length;i++){
+      row.push(rest[i]); rowSum+=rest[i].v;
+      const rowArea=rowSum/total*rw*rh;
+      const thick=rowArea/side;
+      let worst=0;
+      row.forEach(it=>{ const len=(it.v/rowSum)*side; const r=Math.max(thick/Math.max(len,1e-6),len/Math.max(thick,1e-6)); if(r>worst) worst=r; });
+      if(worst>best && row.length>1){ row.pop(); rowSum-=rest[i].v; break; }
+      best=worst;
+    }
+    const rowArea=rowSum/total*rw*rh;
+    if(rw>=rh){
+      const tw=rowArea/rh; let cy=ry;
+      row.forEach(it=>{ const ih=(it.v/rowSum)*rh; out.push({it,x:rx,y:cy,w:tw,h:ih}); cy+=ih; });
+      rx+=tw; rw-=tw;
+    } else {
+      const th=rowArea/rw; let cx=rx;
+      row.forEach(it=>{ const iw=(it.v/rowSum)*rw; out.push({it,x:cx,y:ry,w:iw,h:th}); cx+=iw; });
+      ry+=th; rh-=th;
+    }
+    rest=rest.slice(row.length);
+  }
+}
+function heatColor(c){
+  if(c==null||!isFinite(c)) return 'var(--chip)';
+  const a=Math.min(1,Math.abs(c)/0.03);
+  if(a<0.02) return 'var(--chip)';
+  const pct=Math.round(8+46*a);
+  return 'color-mix(in srgb, var('+(c>=0?'--up':'--down')+') '+pct+'%, var(--chip))';
+}
+function renderHeat(){
+  const box=$('heatBox');
+  if(!box || S.posView!=='heat') return;
+  box.textContent='';
+  const W=box.clientWidth, H=box.clientHeight;
+  if(!(W>0&&H>0)) return;
+  const order=['ABD','RET','TRD','BIST','Kripto','Nakit'];
+  const groups=order.map(cls=>{
+    const items=POSITIONS.filter(p=>p.cls===cls).map(p=>({v:valUSD(p),p})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+    return {cls, v:items.reduce((a,b)=>a+b.v,0), items};
+  }).filter(g=>g.v>0).sort((a,b)=>b.v-a.v);
+  if(!groups.length) return;
+  const tip=$('heatTip');
+  const clsRects=[]; squarify(groups,0,0,W,H,clsRects);
+  clsRects.forEach(cr=>{
+    const g=cr.it;
+    const reg=document.createElement('div'); reg.className='hm-cls';
+    reg.style.cssText='left:'+(cr.x+1)+'px;top:'+(cr.y+1)+'px;width:'+Math.max(cr.w-2,0)+'px;height:'+Math.max(cr.h-2,0)+'px;'+
+      'border-color:color-mix(in srgb, var('+CLASSES[g.cls].v+') 45%, transparent)';
+    if(cr.w>60&&cr.h>34){
+      const lb=document.createElement('span'); lb.className='hm-cl-lbl'; lb.textContent=CLASSES[g.cls].name;
+      reg.appendChild(lb);
+    }
+    box.appendChild(reg);
+    const pad=(cr.w>60&&cr.h>40)?13:3; // sınıf etiketi payı
+    const inner=[]; squarify(g.items, cr.x+3, cr.y+2+pad, Math.max(cr.w-6,0), Math.max(cr.h-4-pad,0), inner);
+    inner.forEach(r=>{
+      const p=r.it.p;
+      const c=(p.cls==='Nakit')?null:((p.prev!=null&&p.prev>0)?(p.price/p.prev-1):null);
+      const d=document.createElement('div'); d.className='hm-box';
+      const bw=Math.max(r.w-2,0), bh=Math.max(r.h-2,0);
+      d.style.cssText='left:'+(r.x+1)+'px;top:'+(r.y+1)+'px;width:'+bw+'px;height:'+bh+'px;background:'+heatColor(c);
+      const fs=Math.max(9,Math.min(17,Math.sqrt(bw*bh)/6));
+      if(bw>30&&bh>16){
+        const t=document.createElement('span'); t.className='hm-tk'; t.style.fontSize=fs+'px'; t.textContent=p.tk;
+        d.appendChild(t);
+        if(bh>34&&c!=null){
+          const pc=document.createElement('span'); pc.className='hm-pct'; pc.style.fontSize=Math.max(8.5,fs*0.72)+'px';
+          pc.textContent=(c>=0?'+':'')+(c*100).toFixed(2)+'%';
+          d.appendChild(pc);
+        }
+      }
+      d.addEventListener('click',()=>{ if(p.cls==='Nakit') openClassModal('Nakit'); else openAssetModal(p,p.cls); });
+      d.addEventListener('mousemove',e=>{
+        const isTL=p.cls==='BIST';
+        const v0=isTL?p.qty*p.price:valUSD(p);
+        const pl0=v0-(isTL?p.qty*p.avg:costUSD(p));
+        tip.style.opacity='1';
+        tip.textContent='';
+        const tv=document.createElement('div'); tv.className='tv'; tv.textContent=p.tk+' · '+CLASSES[p.cls].name;
+        const r1=document.createElement('div'); r1.className='trow';
+        r1.textContent='Value: '+mv((isTL?fmtTRY:fmtUSD).format(v0));
+        const r2=document.createElement('div'); r2.className='trow';
+        r2.textContent=(c!=null)?('Today: '+(c>=0?'+':'')+(c*100).toFixed(2)+'%'):'Today: —';
+        const r3=document.createElement('div'); r3.className='trow';
+        r3.textContent=(p.cls==='Nakit')?'':('Total P/L: '+mv(fmtSignC(pl0,isTL)));
+        tip.append(tv,r1,r2,r3);
+        const bb=box.getBoundingClientRect();
+        let tx=e.clientX-bb.left+14, ty=e.clientY-bb.top+14;
+        if(tx+180>W) tx-=200; if(ty+90>H) ty-=100;
+        tip.style.left=(box.offsetLeft+tx)+'px'; tip.style.top=(box.offsetTop+ty)+'px';
+      });
+      d.addEventListener('mouseleave',()=>{ tip.style.opacity='0'; });
+      box.appendChild(d);
+    });
+  });
+}
+function syncPosView(){
+  const heat=S.posView==='heat';
+  $('heatCard').style.display=heat?'':'none';
+  document.querySelector('.pos-grid').style.display=heat?'none':'grid';
+  document.querySelectorAll('#posViewT button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.posView));
+  if(heat) renderHeat();
+}
+document.querySelectorAll('#posViewT button').forEach(b=>{
+  b.onclick=()=>{ S.posView=b.dataset.v;
+    try{ localStorage.setItem('posView',S.posView); }catch(e){}
+    syncPosView(); };
+});
 const fmtSignTRY = x => (x>=0?'+':'−') + fmtTRY.format(Math.abs(x));
 const fmtSignC = (x,tl) => tl ? fmtSignTRY(x) : fmtSign(x);
 const PALETTE=['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
@@ -1674,7 +1820,7 @@ async function loadPositions(){
   }catch(e){}
 }
 /* ================= refresh & init ================= */
-function refresh(){ renderTiles(); renderTable(); renderErn(); renderRates(); renderDonut(); renderChart(); }
+function refresh(){ renderTiles(); renderTable(); renderErn(); if(S.posView==='heat') renderHeat(); renderRates(); renderDonut(); renderChart(); }
 $('refreshBtn').onclick=fetchLive;
 const EYE_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 const EYE_OFF_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
@@ -1725,7 +1871,8 @@ document.querySelectorAll('#chartModeT button').forEach(b=>{
 });
 syncChartMode();
 renderChart();
-let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(renderChart,150); });
+let rsT; addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ renderChart(); if(S.posView==='heat') renderHeat(); },150); });
+syncPosView();
 initRanges();
 buildHistory();
 loadHistory();
