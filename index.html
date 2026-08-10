@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: earnrep-v1 2026-08-10 -->
+<!-- build: earnrep-v2 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -569,7 +569,7 @@ function renderErn(){
   const ups=POSITIONS.map(p=>({p,e:ernInfo(p)})).filter(x=>x.e&&x.e.d>=0&&x.e.d<=14).sort((a,b)=>a.e.d-b.e.d);
   const reps=((EARN&&EARN.reports)||[])
     .map(r=>({r,p:POSITIONS.find(x=>x.tk===r.tk&&(x.cls==='ABD'||x.cls==='TRD'))}))
-    .filter(x=>{ if(!x.p) return false; const dd=(Date.now()-Date.parse(x.r.d))/86400000; return isFinite(dd)&&dd>=0&&dd<=3; });
+    .filter(x=>{ if(!x.p) return false; const dd=(Date.now()-Date.parse(x.r.d))/86400000; return isFinite(dd)&&dd>=0&&dd<=7; });
   if(!ups.length&&!reps.length){ el.style.display='none'; return; }
   el.style.display='flex'; el.textContent='';
   const h=document.createElement('span'); h.className='ern-head'; h.textContent='Earnings';
