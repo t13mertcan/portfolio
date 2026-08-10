@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: earnrep-v4 2026-08-10 -->
+<!-- build: cash-v1 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1016,7 +1016,7 @@ function renderTable(){
     vs.textContent=S.priv?MASK:('≈ '+(isTL ? fmtUSD.format(sumV/S.fx) : fmtTRY.format(sumV*S.fx)));
     const d=document.createElement('span'); d.className='delta '+(hdPL>=0?'up':'down');
     d.textContent = hdHas ? (mode==='daily'?'today ':'')+mv(fmtSignC(hdPL,isTL))+' ('+fmtPct(hdPLP)+')' : 'today —';
-    if(items.length){ right.append(v,vs,d); } else { v.textContent='—'; right.append(v); }
+    if(items.length){ if(cls==='Nakit'){ right.append(v,vs); } else { right.append(v,vs,d); } } else { v.textContent='—'; right.append(v); }
     hd.append(left,right); card.appendChild(hd);
     hd.addEventListener('click',()=>openClassModal(cls));
     if(!items.length){
@@ -1028,7 +1028,8 @@ function renderTable(){
     const wrap=document.createElement('div'); wrap.style.overflowX='auto';
     const tbl=document.createElement('table');
     const thead=document.createElement('thead'); const trh=document.createElement('tr');
-    ['Position','Qty','Avg Cost','Price','Value','P/L','P/L %'].forEach(h=>{
+    const cols = cls==='Nakit' ? ['Position','Qty','Avg Cost','Price','Value'] : ['Position','Qty','Avg Cost','Price','Value','P/L','P/L %'];
+    cols.forEach(h=>{
       const th=document.createElement('th');
       if(h==='P/L'||h==='P/L %'){
         th.textContent=(mode==='daily'?'Daily ':'')+h;
@@ -1080,15 +1081,17 @@ function renderTable(){
       const vsub=document.createElement('span'); vsub.className='cell-sub';
       vsub.textContent=S.priv?MASK:(isTL ? fmtUSD.format(v2/S.fx) : fmtTRY.format(v2*S.fx));
       td4.append(vm,vsub); tr.appendChild(td4);
-      const td5=document.createElement('td'); const td6=document.createElement('td');
-      if(hasPL){
-        td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=mv(fmtSignC(pl2,isTL));
-        td6.className='pl-cell '+(pl2>=0?'up':'down'); td6.textContent=fmtPct(plp2);
-      } else {
-        td5.className='muted'; td5.textContent='—';
-        td6.className='muted'; td6.textContent='—';
+      if(p.cls!=='Nakit'){
+        const td5=document.createElement('td'); const td6=document.createElement('td');
+        if(hasPL){
+          td5.className='pl-cell '+(pl2>=0?'up':'down'); td5.textContent=mv(fmtSignC(pl2,isTL));
+          td6.className='pl-cell '+(pl2>=0?'up':'down'); td6.textContent=fmtPct(plp2);
+        } else {
+          td5.className='muted'; td5.textContent='—';
+          td6.className='muted'; td6.textContent='—';
+        }
+        tr.appendChild(td5); tr.appendChild(td6);
       }
-      tr.appendChild(td5); tr.appendChild(td6);
       tb.appendChild(tr);
     });
     tbl.appendChild(tb); wrap.appendChild(tbl); card.appendChild(wrap);
@@ -1237,7 +1240,9 @@ function openClassModal(cls){
   t1.append(dot,nm); hl.appendChild(t1);
   const sub=document.createElement('div'); sub.className='sub-h';
   const pl=total-totalC;
-  sub.textContent=mv(fmt.format(total))+' · P/L '+mv(fmtSignC(pl,isTL))+' ('+fmtPct(totalC?pl/totalC:0)+')';
+  sub.textContent = cls==='Nakit'
+    ? mv(fmt.format(total))
+    : mv(fmt.format(total))+' · P/L '+mv(fmtSignC(pl,isTL))+' ('+fmtPct(totalC?pl/totalC:0)+')';
   hl.appendChild(sub);
   const x=document.createElement('button'); x.className='modal-close'; x.textContent='✕';
   x.onclick=()=>$('modalBg').classList.remove('open');
@@ -1283,7 +1288,10 @@ function openClassModal(cls){
   const wrap=document.createElement('div'); wrap.style.overflowX='auto';
   const tbl=document.createElement('table');
   const th=document.createElement('thead'); const trh=document.createElement('tr');
-  ['Position','Weight','Qty','Avg Cost','Price','Value','P/L','P/L %'].forEach(h=>{const e=document.createElement('th'); e.textContent=h; trh.appendChild(e);});
+  (cls==='Nakit'
+    ? ['Position','Weight','Qty','Avg Cost','Price','Value']
+    : ['Position','Weight','Qty','Avg Cost','Price','Value','P/L','P/L %']
+  ).forEach(h=>{const e=document.createElement('th'); e.textContent=h; trh.appendChild(e);});
   th.appendChild(trh); tbl.appendChild(th);
   const tb=document.createElement('tbody');
   items.forEach((p,i)=>{
@@ -1305,9 +1313,11 @@ function openClassModal(cls){
       mv(fmt.format(val(p)))
     ];
     cells.forEach(v3=>{const e=document.createElement('td'); e.textContent=v3; tr.appendChild(e);});
-    const pl3=val(p)-cost(p), plp3=cost(p)?pl3/cost(p):0;
-    const e1=document.createElement('td'); e1.className='pl-cell '+(pl3>=0?'up':'down'); e1.textContent=mv(fmtSignC(pl3,isTL)); tr.appendChild(e1);
-    const e2=document.createElement('td'); e2.className='pl-cell '+(pl3>=0?'up':'down'); e2.textContent=fmtPct(plp3); tr.appendChild(e2);
+    if(cls!=='Nakit'){
+      const pl3=val(p)-cost(p), plp3=cost(p)?pl3/cost(p):0;
+      const e1=document.createElement('td'); e1.className='pl-cell '+(pl3>=0?'up':'down'); e1.textContent=mv(fmtSignC(pl3,isTL)); tr.appendChild(e1);
+      const e2=document.createElement('td'); e2.className='pl-cell '+(pl3>=0?'up':'down'); e2.textContent=fmtPct(plp3); tr.appendChild(e2);
+    }
     tb.appendChild(tr);
   });
   tbl.appendChild(tb); wrap.appendChild(tbl); box.appendChild(wrap);
