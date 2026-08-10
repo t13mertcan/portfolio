@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: tip-v2 2026-08-10 -->
+<!-- build: earnrep-v1 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -152,6 +152,13 @@
   .ern-item{font-size:12px;font-weight:650;color:#e8973a;border:1px solid rgba(232,151,58,0.45);border-radius:8px;padding:3px 9px;white-space:nowrap}
   .ern-item.soon{color:var(--down);border-color:rgba(224,82,82,0.55)}
   .ern-item .ei-d{color:var(--ink-3);font-weight:600}
+  .ern-item.rep{color:var(--s1);border-color:color-mix(in srgb, var(--s1) 45%, transparent);cursor:pointer}
+  .ern-item.rep:hover{border-color:var(--s1)}
+  .er-imp{display:flex;gap:8px;align-items:flex-start;margin-top:7px;font-size:12.5px;color:var(--ink-2);line-height:1.45}
+  .er-tag{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:.05em;border:1px solid;border-radius:5px;padding:2px 6px;margin-top:1px}
+  .er-tag.iyi{color:var(--up);border-color:rgba(12,163,12,0.5)}
+  .er-tag.kotu{color:var(--down);border-color:rgba(224,82,82,0.55)}
+  .er-tag.notr{color:var(--ink-3);border-color:var(--border)}
   td.editable{cursor:text;text-decoration:underline dotted var(--axis);text-underline-offset:3px}
   td.editable input{width:84px;font:inherit;text-align:right;background:var(--chip);color:var(--ink-1);
     border:1px solid var(--accent);border-radius:6px;padding:2px 6px;outline:none}
@@ -548,13 +555,33 @@ function ernInfo(p){
   const lbl=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric'}).format(new Date(p.ern*1000));
   return {d,lbl};
 }
+let EARN=null; // bilanço analiz raporları (earnings.json — sabah görevi yazar)
+async function loadEarnRep(){
+  try{
+    const r=await fetch('earnings.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) return;
+    EARN=await r.json();
+    renderErn();
+  }catch(e){}
+}
 function renderErn(){
   const el=$('ernStrip'); if(!el) return;
   const ups=POSITIONS.map(p=>({p,e:ernInfo(p)})).filter(x=>x.e&&x.e.d>=0&&x.e.d<=14).sort((a,b)=>a.e.d-b.e.d);
-  if(!ups.length){ el.style.display='none'; return; }
+  const reps=((EARN&&EARN.reports)||[])
+    .map(r=>({r,p:POSITIONS.find(x=>x.tk===r.tk&&(x.cls==='ABD'||x.cls==='TRD'))}))
+    .filter(x=>{ if(!x.p) return false; const dd=(Date.now()-Date.parse(x.r.d))/86400000; return isFinite(dd)&&dd>=0&&dd<=3; });
+  if(!ups.length&&!reps.length){ el.style.display='none'; return; }
   el.style.display='flex'; el.textContent='';
-  const h=document.createElement('span'); h.className='ern-head'; h.textContent='Upcoming earnings';
+  const h=document.createElement('span'); h.className='ern-head'; h.textContent='Earnings';
   el.appendChild(h);
+  reps.forEach(x=>{
+    const s=document.createElement('span'); s.className='ern-item rep';
+    s.textContent=x.r.tk+(x.p.cls==='TRD'?' (trade)':'');
+    const dd=document.createElement('span'); dd.className='ei-d'; dd.textContent=' · results ▸';
+    s.appendChild(dd); s.title='Bilanço analizi için tıkla';
+    s.addEventListener('click',()=>openAssetModal(x.p,x.p.cls));
+    el.appendChild(s);
+  });
   ups.forEach(x=>{
     const s=document.createElement('span'); s.className='ern-item'+(x.e.d<=1?' soon':'');
     s.textContent=x.p.tk+(x.p.cls==='TRD'?' (trade)':'');
@@ -1410,6 +1437,25 @@ function openAssetModal(p, backCls){
     const tip=document.createElement('div'); tip.className='tip';
     chWrap.appendChild(tip);
     box.appendChild(chWrap);
+    /* bilanço analiz bloğu (varsa, son 30 gün) */
+    const rep=((typeof EARN!=='undefined'&&EARN&&EARN.reports)||[]).filter(r=>r.tk===p.tk&&(p.cls==='ABD'||p.cls==='TRD'))
+      .sort((a,b)=>String(b.d).localeCompare(String(a.d)))[0];
+    if(rep && (Date.now()-Date.parse(rep.d))/86400000<=30){
+      const eh=document.createElement('div'); eh.className='sub-h'; eh.style.margin='0 0 8px';
+      eh.textContent='Earnings report · '+rep.d+(rep.q?' · '+rep.q:'');
+      const ebox=document.createElement('div');
+      ebox.style.cssText='background:var(--chip);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px';
+      if(rep.hl){ const h3=document.createElement('div'); h3.style.cssText='font-weight:700;color:var(--ink-1);font-size:13.5px;margin-bottom:5px'; h3.textContent=rep.hl; ebox.appendChild(h3); }
+      if(rep.sum){ const su=document.createElement('div'); su.style.cssText='font-size:12.5px;color:var(--ink-2);line-height:1.55'; su.textContent=rep.sum; ebox.appendChild(su); }
+      (rep.imp||[]).forEach(it=>{
+        const row=document.createElement('div'); row.className='er-imp';
+        const tg2=document.createElement('span'); const s2=String(it.s||'NOTR').toUpperCase();
+        tg2.className='er-tag '+(s2==='IYI'?'iyi':(s2==='KOTU'?'kotu':'notr')); tg2.textContent=s2;
+        const tx2=document.createElement('span'); tx2.textContent=it.t||'';
+        row.append(tg2,tx2); ebox.appendChild(row);
+      });
+      box.appendChild(eh); box.appendChild(ebox);
+    }
     const nh=document.createElement('div'); nh.className='sub-h'; nh.style.margin='0 0 8px'; nh.textContent='Latest news · '+p.tk;
     box.appendChild(nh);
     const nl=document.createElement('div'); nl.className='x-list'; nl.style.maxHeight='300px';
@@ -1895,6 +1941,8 @@ setInterval(fetchLive, 60000);
 setInterval(loadPositions, 5*60000);
 loadIntraday();
 setInterval(loadIntraday, 2*60000);
+loadEarnRep();
+setInterval(loadEarnRep, 10*60000);
 fetchNews();
 setInterval(fetchNews, 15*60000);
 fetchTweets();
