@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: tip-v1 2026-08-10 -->
+<!-- build: tip-v2 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -898,7 +898,8 @@ function onHover(e){
   const tw=tip.offsetWidth||220, th=tip.offsetHeight||150;
   const my=e.clientY-r.top;
   const tx=(best.px>bw*0.5) ? 14 : Math.max(14,bw-tw-14);          // imleç sağda → kutu solda
-  const ty=(my<bh2*0.5) ? Math.max(10,bh2-th-46) : 10;             // imleç üstte → kutu altta
+  // imleç üstte → kutu altta; üstte kalıyorsa SOL üst köşede mod düğmelerinin altına in (çakışma önlenir)
+  const ty=(my<bh2*0.5) ? Math.max(10,bh2-th-46) : (tx<20 ? 52 : 10);
   tip.style.left=tx+'px'; tip.style.top=ty+'px';
   tip.style.opacity=1;
 }
