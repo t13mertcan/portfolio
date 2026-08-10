@@ -1,1 +1,1 @@
-{"reports": [{"tk": "HIMS", "d": "2026-08-10", "q": "TEST", "hl": "TEST VERISI — ornek analiz (gercek degil)", "sum": "Bu bir gorsel dogrulama kaydidir. Sabah gorevi ilk gercek bilancoyu isleyince bu kayit otomatik olarak gercek analizle degisecek.", "imp": [{"s": "IYI", "t": "Ornek olumlu etki satiri."}, {"s": "KOTU", "t": "Ornek olumsuz etki satiri."}, {"s": "NOTR", "t": "Ornek notr etki satiri."}]}]}
+{"reports": []}
