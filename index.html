@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: earnrep-v3 2026-08-10 -->
+<!-- build: earnrep-v4 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1447,6 +1447,19 @@ function openAssetModal(p, backCls){
       ebox.style.cssText='background:var(--chip);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px';
       if(rep.hl){ const h3=document.createElement('div'); h3.style.cssText='font-weight:700;color:var(--ink-1);font-size:13.5px;margin-bottom:5px'; h3.textContent=rep.hl; ebox.appendChild(h3); }
       if(rep.sum){ const su=document.createElement('div'); su.style.cssText='font-size:12.5px;color:var(--ink-2);line-height:1.55'; su.textContent=rep.sum; ebox.appendChild(su); }
+      (rep.det||[]).forEach(sec=>{
+        if(!sec||!sec.t) return;
+        const dh=document.createElement('div'); dh.style.cssText='font-weight:700;color:var(--ink-1);font-size:11.5px;margin-top:11px;letter-spacing:.03em;text-transform:uppercase';
+        dh.textContent=sec.h||'';
+        const dt=document.createElement('div'); dt.style.cssText='font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:2px';
+        dt.textContent=sec.t;
+        ebox.append(dh,dt);
+      });
+      if((rep.imp||[]).length){
+        const ih=document.createElement('div'); ih.style.cssText='font-weight:700;color:var(--ink-1);font-size:11.5px;margin-top:11px;letter-spacing:.03em;text-transform:uppercase';
+        ih.textContent='Portföye etkisi';
+        ebox.appendChild(ih);
+      }
       (rep.imp||[]).forEach(it=>{
         const row=document.createElement('div'); row.className='er-imp';
         const tg2=document.createElement('span'); const s2=String(it.s||'NOTR').toUpperCase();
