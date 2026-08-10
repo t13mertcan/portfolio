@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: heat-v3 2026-08-09 -->
+<!-- build: tip-v1 2026-08-10 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -892,9 +892,14 @@ function onHover(e){
   });
   const l=document.createElement('div'); l.className='tl'; l.textContent=tipLabel(best.t,S.range);
   tip.appendChild(l);
-  const bw=$('chartBox').clientWidth;
-  tip.style.left=Math.min(bw-230,Math.max(0,best.px+12))+'px';
-  tip.style.top=Math.max(0,best.py-56)+'px';
+  // akıllı kaçınma: kutu, imlecin bulunduğu çeyreğin KARŞI köşesine gider
+  const box2=$('chartBox');
+  const bw=box2.clientWidth, bh2=box2.clientHeight;
+  const tw=tip.offsetWidth||220, th=tip.offsetHeight||150;
+  const my=e.clientY-r.top;
+  const tx=(best.px>bw*0.5) ? 14 : Math.max(14,bw-tw-14);          // imleç sağda → kutu solda
+  const ty=(my<bh2*0.5) ? Math.max(10,bh2-th-46) : 10;             // imleç üstte → kutu altta
+  tip.style.left=tx+'px'; tip.style.top=ty+'px';
   tip.style.opacity=1;
 }
 function hideTip(){
