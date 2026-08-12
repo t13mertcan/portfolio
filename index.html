@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: cash-v1 2026-08-10 -->
+<!-- build: heat-v4 2026-08-12 (cash removed from heatmap) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1145,7 +1145,7 @@ function renderHeat(){
   box.textContent='';
   const W=box.clientWidth, H=box.clientHeight;
   if(!(W>0&&H>0)) return;
-  const order=['ABD','RET','TRD','BIST','Kripto','Nakit'];
+  const order=['ABD','RET','TRD','BIST','Kripto'];
   const groups=order.map(cls=>{
     const items=POSITIONS.filter(p=>p.cls===cls).map(p=>({v:valUSD(p),p})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
     return {cls, v:items.reduce((a,b)=>a+b.v,0), items};
