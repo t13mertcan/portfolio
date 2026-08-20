@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: heat-v4 2026-08-12 (cash removed from heatmap) -->
+<!-- build: sess-v1 2026-08-20 (after-hours seansi) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -143,6 +143,7 @@
     border-radius:6px;padding:2px 6px;vertical-align:1px}
   .live-chip.live{color:var(--up);border-color:rgba(12,163,12,0.5)}
   .live-chip.pre{color:#e8973a;border-color:rgba(232,151,58,0.55)}
+  .live-chip.post{color:#4aa3e8;border-color:rgba(74,163,232,0.55)}
   .live-chip.closed{color:var(--down);border-color:rgba(224,82,82,0.5)}
   .ern-chip{font-size:9px;font-weight:700;letter-spacing:.05em;color:#e8973a;border:1px solid rgba(232,151,58,0.5);
     border-radius:6px;padding:2px 6px;vertical-align:1px;white-space:nowrap}
@@ -543,6 +544,7 @@ function mktState(p){
     if(t.dow==='Sat'||t.dow==='Sun') return 'closed';
     if(t.m>=240&&t.m<570) return 'pre';
     if(t.m>=570&&t.m<960) return 'live';
+    if(t.m>=960&&t.m<1200) return 'post';
     return 'closed';
   }
   return null;
@@ -1050,7 +1052,7 @@ function renderTable(){
       const lc=document.createElement('span');
       const isLive=(p.live==='cg'||p.live==='gold') ? S.liveOk : (p.live==='fh') ? !!S.fhKey : !!p.yh;
       const st=isLive?mktState(p):null;
-      if(st){ lc.className='live-chip '+(st==='pre'?'pre':st); lc.textContent=st==='live'?'LIVE':(st==='pre'?'PRE-MKT':'CLOSED'); }
+      if(st){ lc.className='live-chip '+st; lc.textContent=({live:'LIVE',pre:'PRE-MKT',post:'AFTER-MKT',closed:'CLOSED'})[st]||'CLOSED'; }
       else { lc.className='live-chip'+(isLive?' live':''); lc.textContent=isLive?'LIVE':'MANUAL'; }
       tk.append(nm2,lc);
       const ei=ernInfo(p);
@@ -1712,12 +1714,12 @@ async function tvScan(market, tickers){
   try{
     const r=await fetch('https://scanner.tradingview.com/'+market+'/scan',{
       method:'POST', signal:ctl.signal,
-      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs','premarket_close','premarket_change_abs','earnings_release_next_date']})
+      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs','premarket_close','premarket_change_abs','earnings_release_next_date','postmarket_close','postmarket_change_abs','postmarket_time','premarket_time']})
     });
     if(!r.ok) return {};
     const j=await r.json();
     const out={};
-    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2], pm:row.d[3], pmAbs:row.d[4], ern:row.d[5]}; });
+    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2], pm:row.d[3], pmAbs:row.d[4], ern:row.d[5], pk:row.d[6], pkAbs:row.d[7], pkT:row.d[8], pmT:row.d[9]}; });
     return out;
   }catch(e){ return {}; }
   finally{ clearTimeout(t); }
@@ -1746,6 +1748,9 @@ async function fetchYahoo(){
   // dakikasında gün çubuğu hâlâ DÜNÜ gösterir. O pencerede pre-market fiyatı köprü olarak kullan.
   const usT=tzMin('America/New_York');
   const usEarly = usT.m>=570 && usT.m<590; // 09:30–09:50 ET
+  // TV premarket_/postmarket_ alanlari seans disinda DONMUS kalir: gun icinde postmarket_close
+  // dunku after-hours degerini tutar. Zaman damgasiyla dogrula, 6 saatten eskiyse kullanma.
+  const fresh=(t,strict)=>{ if(typeof t!=='number'||!(t>0)) return !strict; return (Date.now()/1000-t)<21600; };
   POSITIONS.filter(p=>p.cls==='ABD'||p.cls==='RET'||p.cls==='TRD').forEach(p=>{
     for(const pre of US_PRE){
       const o=gl[pre+p.tk];
@@ -1753,11 +1758,17 @@ async function fetchYahoo(){
         p.yh=true; any=true; p.ex=pre;
         if(typeof o.ern==='number'&&o.ern>0) p.ern=o.ern;
         const st=mktState(p);
-        if((st==='pre' || (st==='live'&&usEarly)) && o.pm!=null && o.pm>0){
+        if((st==='pre' || (st==='live'&&usEarly)) && o.pm!=null && o.pm>0 && fresh(o.pmT,false)){
           // pre-market (veya açılışın gecikmeli ilk dakikaları): fiyat = premarket,
           // günlük değişim = premarket vs dünkü resmi kapanış
           p.price=o.pm; p.prev=o.price; anyPrev=true;
           dayReal += (typeof o.pmAbs==='number' ? o.pmAbs : (o.pm-o.price))*p.qty;
+        } else if(st==='post' && o.pk!=null && o.pk>0 && fresh(o.pkT,true) && typeof o.abs==='number'){
+          // after-hours (16:00-20:00 ET): fiyat = postmarket kapanisi,
+          // gunluk degisim = seans degisimi + after-hours degisimi (dunku kapanisa gore)
+          const pkAbs = (typeof o.pkAbs==='number') ? o.pkAbs : (o.pk-o.price);
+          p.price=o.pk; p.prev=o.price-o.abs; anyPrev=true;
+          dayReal += (o.abs+pkAbs)*p.qty;
         } else {
           p.price=o.price;
           if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty; }
