@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: sess-v1 2026-08-20 (after-hours seansi) -->
+<!-- build: hol-v1 2026-09-07 (borsa tatili rozeti) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -144,6 +144,7 @@
   .live-chip.live{color:var(--up);border-color:rgba(12,163,12,0.5)}
   .live-chip.pre{color:#e8973a;border-color:rgba(232,151,58,0.55)}
   .live-chip.post{color:#4aa3e8;border-color:rgba(74,163,232,0.55)}
+  .live-chip.holiday{color:#a98eda;border-color:rgba(169,142,218,0.55)}
   .live-chip.closed{color:var(--down);border-color:rgba(224,82,82,0.5)}
   .ern-chip{font-size:9px;font-weight:700;letter-spacing:.05em;color:#e8973a;border:1px solid rgba(232,151,58,0.5);
     border-radius:6px;padding:2px 6px;vertical-align:1px;white-space:nowrap}
@@ -533,6 +534,7 @@ function tzMin(tz){
   return {dow:g('weekday'), m:(parseInt(g('hour'),10)%24)*60+parseInt(g('minute'),10)};
 }
 function mktState(p){
+  if(p.sess==='holiday') return 'holiday';   // TV current_session: borsa tatili
   if(p.cls==='Kripto') return 'live';
   if(p.cls==='BIST'){
     const t=tzMin('Europe/Istanbul');
@@ -1052,7 +1054,7 @@ function renderTable(){
       const lc=document.createElement('span');
       const isLive=(p.live==='cg'||p.live==='gold') ? S.liveOk : (p.live==='fh') ? !!S.fhKey : !!p.yh;
       const st=isLive?mktState(p):null;
-      if(st){ lc.className='live-chip '+st; lc.textContent=({live:'LIVE',pre:'PRE-MKT',post:'AFTER-MKT',closed:'CLOSED'})[st]||'CLOSED'; }
+      if(st){ lc.className='live-chip '+st; lc.textContent=({live:'LIVE',pre:'PRE-MKT',post:'AFTER-MKT',holiday:'HOLIDAY',closed:'CLOSED'})[st]||'CLOSED'; }
       else { lc.className='live-chip'+(isLive?' live':''); lc.textContent=isLive?'LIVE':'MANUAL'; }
       tk.append(nm2,lc);
       const ei=ernInfo(p);
@@ -1714,12 +1716,12 @@ async function tvScan(market, tickers){
   try{
     const r=await fetch('https://scanner.tradingview.com/'+market+'/scan',{
       method:'POST', signal:ctl.signal,
-      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs','premarket_close','premarket_change_abs','earnings_release_next_date','postmarket_close','postmarket_change_abs','postmarket_time','premarket_time']})
+      body:JSON.stringify({symbols:{tickers, query:{types:[]}}, columns:['close','change','change_abs','premarket_close','premarket_change_abs','earnings_release_next_date','postmarket_close','postmarket_change_abs','postmarket_time','premarket_time','current_session']})
     });
     if(!r.ok) return {};
     const j=await r.json();
     const out={};
-    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2], pm:row.d[3], pmAbs:row.d[4], ern:row.d[5], pk:row.d[6], pkAbs:row.d[7], pkT:row.d[8], pmT:row.d[9]}; });
+    (j.data||[]).forEach(row=>{ out[row.s]={price:row.d[0], chg:row.d[1], abs:row.d[2], pm:row.d[3], pmAbs:row.d[4], ern:row.d[5], pk:row.d[6], pkAbs:row.d[7], pkT:row.d[8], pmT:row.d[9], sess:row.d[10]}; });
     return out;
   }catch(e){ return {}; }
   finally{ clearTimeout(t); }
@@ -1739,8 +1741,9 @@ async function fetchYahoo(){
   // BIST pozisyonları
   bist.forEach(p=>{
     const o=tr['BIST:'+p.tk]; if(!o) return;
-    p.price=o.price; p.yh=true; any=true;
-    if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty/S.fx; }
+    p.price=o.price; p.yh=true; any=true; p.sess=o.sess;
+    if(o.sess==='holiday'){ p.prev=o.price; anyPrev=true; }  // tatil: gunluk degisim sifir
+    else if(typeof o.abs==='number'){ p.prev=o.price-o.abs; anyPrev=true; dayReal+=o.abs*p.qty/S.fx; }
   });
   // ABD hisseleri/ETF'leri: NASDAQ/NYSE/AMEX öneklerinden dönen ilk sonuç
   const US_PRE=['NASDAQ:','NYSE:','AMEX:'];
@@ -1757,8 +1760,13 @@ async function fetchYahoo(){
       if(o){
         p.yh=true; any=true; p.ex=pre;
         if(typeof o.ern==='number'&&o.ern>0) p.ern=o.ern;
+        p.sess=o.sess;
         const st=mktState(p);
-        if((st==='pre' || (st==='live'&&usEarly)) && o.pm!=null && o.pm>0 && fresh(o.pmT,false)){
+        if(st==='holiday'){
+          // borsa tatili: bugun hic seans olmadi, gunluk degisim sifir olmali.
+          // TV tatil gunlerinde change_abs alaninda ONCEKI seansin degisimini tasimaya devam ediyor.
+          p.price=o.price; p.prev=o.price; anyPrev=true;
+        } else if((st==='pre' || (st==='live'&&usEarly)) && o.pm!=null && o.pm>0 && fresh(o.pmT,false)){
           // pre-market (veya açılışın gecikmeli ilk dakikaları): fiyat = premarket,
           // günlük değişim = premarket vs dünkü resmi kapanış
           p.price=o.pm; p.prev=o.price; anyPrev=true;
